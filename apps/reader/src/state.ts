@@ -37,6 +37,12 @@ export interface TypographyConfiguration {
   fontFamily?: string
   lineHeight?: number
   spread?: RenditionSpread
+  spreadMaxWidth?: number
+  spreadPageMarginTop?: number
+  spreadPageMarginRight?: number
+  spreadPageMarginBottom?: number
+  spreadPageMarginLeft?: number
+  spreadRespectAspectRatio?: boolean
   zoom?: number
 }
 

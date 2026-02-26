@@ -12,7 +12,7 @@ import {
 } from '@flow/reader/state'
 import { keys } from '@flow/reader/utils'
 
-import { Select, TextField, TextFieldProps } from '../Form'
+import { Checkbox, Select, TextField, TextFieldProps } from '../Form'
 import { PaneViewProps, PaneView, Pane } from '../base'
 
 // Define an interface for the Font object
@@ -30,7 +30,20 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
 
   const [localFonts, setLocalFonts] = useState<string[]>()
 
-  const { fontFamily, fontSize, fontWeight, lineHeight, zoom, spread } =
+  const {
+    fontFamily,
+    fontSize,
+    fontWeight,
+    lineHeight,
+    zoom,
+    spread,
+    spreadMaxWidth,
+    spreadPageMarginTop,
+    spreadPageMarginRight,
+    spreadPageMarginBottom,
+    spreadPageMarginLeft,
+    spreadRespectAspectRatio,
+  } =
     scope === TypographyScope.Book
       ? focusedBookTab?.book.configuration?.typography ?? defaultSettings
       : settings
@@ -114,6 +127,58 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
             {t('page_view.double_page')}
           </option>
         </Select>
+        <NumberField
+          name={t('double_page.max_width')}
+          min={600}
+          step={20}
+          defaultValue={spreadMaxWidth}
+          onChange={(v) => {
+            setTypography('spreadMaxWidth', v || undefined)
+          }}
+        />
+        <Checkbox
+          name={t('double_page.respect_aspect_ratio')}
+          checked={!!spreadRespectAspectRatio}
+          onChange={(e) => {
+            setTypography('spreadRespectAspectRatio', e.target.checked)
+          }}
+        />
+        <NumberField
+          name={t('double_page.page_margin_top')}
+          min={0}
+          step={1}
+          defaultValue={spreadPageMarginTop}
+          onChange={(v) => {
+            setTypography('spreadPageMarginTop', v || undefined)
+          }}
+        />
+        <NumberField
+          name={t('double_page.page_margin_right')}
+          min={0}
+          step={1}
+          defaultValue={spreadPageMarginRight}
+          onChange={(v) => {
+            setTypography('spreadPageMarginRight', v || undefined)
+          }}
+        />
+        <NumberField
+          name={t('double_page.page_margin_bottom')}
+          min={0}
+          step={1}
+          defaultValue={spreadPageMarginBottom}
+          onChange={(v) => {
+            setTypography('spreadPageMarginBottom', v || undefined)
+          }}
+        />
+        <NumberField
+          name={t('double_page.page_margin_left')}
+          min={0}
+          step={1}
+          defaultValue={spreadPageMarginLeft}
+          onChange={(v) => {
+            setTypography('spreadPageMarginLeft', v || undefined)
+          }}
+        />
         <TextField
           as="input"
           name={t('font_family')}

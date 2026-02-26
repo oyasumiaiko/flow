@@ -1,9 +1,11 @@
 import { useEventListener } from '@literal-ui/hooks'
 import clsx from 'clsx'
 import React, {
+  CSSProperties,
   ComponentProps,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -62,6 +64,23 @@ function handleKeyDown(tab?: BookTab) {
       // ignore `rendition is undefined` error
     }
   }
+}
+
+function parseViewportAspectRatio(viewport?: string) {
+  if (!viewport) return
+
+  const width = Number.parseFloat(
+    /width\s*=\s*([0-9.]+)/i.exec(viewport)?.[1] ?? '',
+  )
+  const height = Number.parseFloat(
+    /height\s*=\s*([0-9.]+)/i.exec(viewport)?.[1] ?? '',
+  )
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || height <= 0) {
+    return
+  }
+
+  return width / height
 }
 
 export function ReaderGridView() {
@@ -205,8 +224,10 @@ interface BookPaneProps {
 }
 
 function BookPane({ tab, onMouseDown }: BookPaneProps) {
-  const ref = useRef<HTMLDivElement>(null)
-  const prevSize = useRef(0)
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const renderRef = useRef<HTMLDivElement>(null)
+  const prevSize = useRef({ width: 0, height: 0 })
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const typography = useTypography(tab)
   const { dark } = useColorScheme()
   const [background] = useBackground()
@@ -216,16 +237,26 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   useTilg()
 
   useEffect(() => {
-    const el = ref.current
+    const el = viewportRef.current
     if (!el) return
 
     const observer = new ResizeObserver(([e]) => {
-      const size = e?.contentRect.width ?? 0
-      // `display: hidden` will lead `rect` to 0
-      if (size !== 0 && prevSize.current !== 0) {
+      const width = e?.contentRect.width ?? 0
+      const height = e?.contentRect.height ?? 0
+      setViewportSize((prev) =>
+        prev.width === width && prev.height === height
+          ? prev
+          : { width, height },
+      )
+      if (
+        width !== 0 &&
+        height !== 0 &&
+        prevSize.current.width !== 0 &&
+        prevSize.current.height !== 0
+      ) {
         reader.resize()
       }
-      prevSize.current = size
+      prevSize.current = { width, height }
     })
 
     observer.observe(el)
@@ -242,7 +273,8 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
 
   const applyCustomStyle = useCallback(() => {
     const contents = rendition?.getContents()[0]
-    updateCustomStyle(contents, typography)
+    const isDoublePage = rendition?.manager?.layout?.divisor === 2
+    updateCustomStyle(contents, typography, isDoublePage)
   }, [rendition, typography])
 
   useEffect(() => {
@@ -250,7 +282,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   }, [applyCustomStyle, tab])
 
   useEffect(() => {
-    if (ref.current) tab.render(ref.current)
+    if (renderRef.current) tab.render(renderRef.current)
   }, [tab])
 
   useEffect(() => {
@@ -386,6 +418,75 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
 
   useDisablePinchZooming(iframe)
 
+  const spreadContainerStyle = useMemo<CSSProperties>(() => {
+    const style: CSSProperties = {
+      colorScheme: 'auto',
+      width: '100%',
+      height: '100%',
+      boxSizing: 'border-box',
+    }
+
+    if ((typography.spread ?? RenditionSpread.Auto) === RenditionSpread.None) {
+      return style
+    }
+
+    const marginTop = Math.max(0, typography.spreadPageMarginTop ?? 0)
+    const marginRight = Math.max(0, typography.spreadPageMarginRight ?? 0)
+    const marginBottom = Math.max(0, typography.spreadPageMarginBottom ?? 0)
+    const marginLeft = Math.max(0, typography.spreadPageMarginLeft ?? 0)
+
+    style.marginInline = 'auto'
+    style.paddingTop = `${marginTop}px`
+    style.paddingRight = `${marginRight}px`
+    style.paddingBottom = `${marginBottom}px`
+    style.paddingLeft = `${marginLeft}px`
+
+    let maxWidth = typography.spreadMaxWidth
+    if (typography.spreadRespectAspectRatio) {
+      const aspectRatio = parseViewportAspectRatio(tab.book.metadata.viewport)
+      const usableHeight = Math.max(
+        viewportSize.height - marginTop - marginBottom,
+        0,
+      )
+      if (aspectRatio && usableHeight > 0) {
+        const aspectMaxWidth =
+          usableHeight * aspectRatio * 2 + (marginLeft + marginRight) * 2
+        maxWidth = maxWidth
+          ? Math.min(maxWidth, aspectMaxWidth)
+          : aspectMaxWidth
+      }
+    }
+
+    if (maxWidth && maxWidth > 0) {
+      style.maxWidth = `${maxWidth}px`
+    }
+
+    return style
+  }, [
+    tab.book.metadata.viewport,
+    typography.spread,
+    typography.spreadMaxWidth,
+    typography.spreadPageMarginBottom,
+    typography.spreadPageMarginLeft,
+    typography.spreadPageMarginRight,
+    typography.spreadPageMarginTop,
+    typography.spreadRespectAspectRatio,
+    viewportSize.height,
+  ])
+
+  useEffect(() => {
+    reader.resize()
+  }, [
+    typography.spread,
+    typography.spreadMaxWidth,
+    typography.spreadPageMarginBottom,
+    typography.spreadPageMarginLeft,
+    typography.spreadPageMarginRight,
+    typography.spreadPageMarginTop,
+    typography.spreadRespectAspectRatio,
+    viewportSize.height,
+  ])
+
   return (
     <div className={clsx('flex h-full flex-col', mobile && 'py-[3vw]')}>
       <PhotoSlider
@@ -397,10 +498,8 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       />
       <ReaderPaneHeader tab={tab} />
       <div
-        ref={ref}
+        ref={viewportRef}
         className={clsx('relative flex-1', isTouchScreen || 'h-0')}
-        // `color-scheme: dark` will make iframe background white
-        style={{ colorScheme: 'auto' }}
       >
         <div
           className={clsx(
@@ -411,8 +510,16 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
             background,
           )}
         />
-        <TextSelectionMenu tab={tab} />
-        <Annotations tab={tab} />
+        <div className="absolute inset-0">
+          <div
+            ref={renderRef}
+            className="relative"
+            style={spreadContainerStyle}
+          >
+            <TextSelectionMenu tab={tab} />
+            <Annotations tab={tab} />
+          </div>
+        </div>
       </div>
       <ReaderPaneFooter tab={tab} />
     </div>

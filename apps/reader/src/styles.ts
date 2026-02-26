@@ -39,31 +39,59 @@ enum Style {
 export function updateCustomStyle(
   contents: Contents | undefined,
   settings: Settings | undefined,
+  isDoublePage = false,
 ) {
   if (!contents || !settings) return
 
-  const { zoom, ...other } = settings
+  const { zoom, spreadPageMarginRight, spreadPageMarginLeft } = settings
+  const other: CSSProperties = {
+    fontFamily: settings.fontFamily,
+    fontSize: settings.fontSize,
+    fontWeight: settings.fontWeight,
+    lineHeight: settings.lineHeight,
+  }
+  const body = contents.content as HTMLBodyElement
+  const parseLength = (value: string | undefined) => {
+    const parsed = Number.parseFloat(value ?? '')
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  const readBodyLength = (property: keyof CSSStyleDeclaration) =>
+    parseLength(body.style[property] as string)
+  const horizontalSpreadMargin = isDoublePage
+    ? (spreadPageMarginLeft ?? 0) + (spreadPageMarginRight ?? 0)
+    : 0
+  const baseColumnGap = readBodyLength('columnGap')
+  const columnGap =
+    horizontalSpreadMargin > 0 && baseColumnGap !== undefined
+      ? baseColumnGap + horizontalSpreadMargin
+      : undefined
   let css = `a, article, cite, div, li, p, pre, span, table, body {
     ${mapToCss(other)}
   }`
 
+  if (columnGap !== undefined) {
+    css += `body {
+      ${mapToCss({
+        columnGap: `${columnGap}px`,
+      })}
+    }`
+  }
+
   if (zoom) {
-    const body = contents.content as HTMLBodyElement
-    const scale = (p: keyof CSSStyleDeclaration) => ({
-      [p]: `${parseInt(body.style[p] as string) / zoom}px`,
-    })
+    const scale = (value?: number) =>
+      value === undefined ? undefined : `${value / zoom}px`
     css += `body {
       ${mapToCss({
         transformOrigin: 'top left',
         transform: `scale(${zoom})`,
-        ...scale('width'),
-        ...scale('height'),
-        ...scale('columnWidth'),
-        ...scale('columnGap'),
-        ...scale('paddingTop'),
-        ...scale('paddingBottom'),
-        ...scale('paddingLeft'),
-        ...scale('paddingRight'),
+        width: scale(readBodyLength('width')),
+        height: scale(readBodyLength('height')),
+        columnWidth: scale(readBodyLength('columnWidth')),
+        columnGap: scale(columnGap ?? readBodyLength('columnGap')),
+        paddingTop: scale(readBodyLength('paddingTop')),
+        paddingBottom: scale(readBodyLength('paddingBottom')),
+        paddingLeft: scale(readBodyLength('paddingLeft')),
+        paddingRight: scale(readBodyLength('paddingRight')),
       })}
     }`
   }

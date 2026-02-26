@@ -33,6 +33,13 @@ export default {
   'typography.page_view': 'Page View',
   'typography.page_view.single_page': 'Single Page',
   'typography.page_view.double_page': 'Double Page',
+  'typography.double_page.max_width': 'Double Page Max Width',
+  'typography.double_page.respect_aspect_ratio':
+    'Respect Original Book Aspect Ratio',
+  'typography.double_page.page_margin_top': 'Page Margin Top',
+  'typography.double_page.page_margin_right': 'Page Margin Right',
+  'typography.double_page.page_margin_bottom': 'Page Margin Bottom',
+  'typography.double_page.page_margin_left': 'Page Margin Left',
   'typography.font_family': 'Font Family',
   'typography.font_size': 'Font Size',
   'typography.font_weight': 'Font Weight',
