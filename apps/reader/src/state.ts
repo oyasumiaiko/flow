@@ -38,10 +38,8 @@ export interface TypographyConfiguration {
   lineHeight?: number
   spread?: RenditionSpread
   spreadMaxWidth?: number
-  spreadPageMarginTop?: number
-  spreadPageMarginRight?: number
-  spreadPageMarginBottom?: number
-  spreadPageMarginLeft?: number
+  spreadPageInnerMargin?: number
+  spreadPageOuterMargin?: number
   spreadRespectAspectRatio?: boolean
   zoom?: number
 }

@@ -43,7 +43,7 @@ export function updateCustomStyle(
 ) {
   if (!contents || !settings) return
 
-  const { zoom, spreadPageMarginRight, spreadPageMarginLeft } = settings
+  const { zoom, spreadPageInnerMargin } = settings
   const other: CSSProperties = {
     fontFamily: settings.fontFamily,
     fontSize: settings.fontSize,
@@ -57,13 +57,14 @@ export function updateCustomStyle(
   }
   const readBodyLength = (property: keyof CSSStyleDeclaration) =>
     parseLength(body.style[property] as string)
-  const horizontalSpreadMargin = isDoublePage
-    ? (spreadPageMarginLeft ?? 0) + (spreadPageMarginRight ?? 0)
+  // 双页内侧边距映射到列间距：每页内侧增加 inner，等价于总 gap 增加 2 * inner。
+  const innerSpreadGap = isDoublePage
+    ? Math.max(0, spreadPageInnerMargin ?? 0) * 2
     : 0
   const baseColumnGap = readBodyLength('columnGap')
   const columnGap =
-    horizontalSpreadMargin > 0 && baseColumnGap !== undefined
-      ? baseColumnGap + horizontalSpreadMargin
+    innerSpreadGap > 0 && baseColumnGap !== undefined
+      ? baseColumnGap + innerSpreadGap
       : undefined
   let css = `a, article, cite, div, li, p, pre, span, table, body {
     ${mapToCss(other)}

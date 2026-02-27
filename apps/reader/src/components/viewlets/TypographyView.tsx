@@ -38,10 +38,8 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
     zoom,
     spread,
     spreadMaxWidth,
-    spreadPageMarginTop,
-    spreadPageMarginRight,
-    spreadPageMarginBottom,
-    spreadPageMarginLeft,
+    spreadPageInnerMargin,
+    spreadPageOuterMargin,
     spreadRespectAspectRatio,
   } =
     scope === TypographyScope.Book
@@ -144,39 +142,21 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
           }}
         />
         <NumberField
-          name={t('double_page.page_margin_top')}
+          name={t('double_page.page_inner_margin')}
           min={0}
           step={1}
-          defaultValue={spreadPageMarginTop}
+          defaultValue={spreadPageInnerMargin}
           onChange={(v) => {
-            setTypography('spreadPageMarginTop', v || undefined)
+            setTypography('spreadPageInnerMargin', v || undefined)
           }}
         />
         <NumberField
-          name={t('double_page.page_margin_right')}
+          name={t('double_page.page_outer_margin')}
           min={0}
           step={1}
-          defaultValue={spreadPageMarginRight}
+          defaultValue={spreadPageOuterMargin}
           onChange={(v) => {
-            setTypography('spreadPageMarginRight', v || undefined)
-          }}
-        />
-        <NumberField
-          name={t('double_page.page_margin_bottom')}
-          min={0}
-          step={1}
-          defaultValue={spreadPageMarginBottom}
-          onChange={(v) => {
-            setTypography('spreadPageMarginBottom', v || undefined)
-          }}
-        />
-        <NumberField
-          name={t('double_page.page_margin_left')}
-          min={0}
-          step={1}
-          defaultValue={spreadPageMarginLeft}
-          onChange={(v) => {
-            setTypography('spreadPageMarginLeft', v || undefined)
+            setTypography('spreadPageOuterMargin', v || undefined)
           }}
         />
         <TextField

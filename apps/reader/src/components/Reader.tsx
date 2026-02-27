@@ -430,27 +430,21 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       return style
     }
 
-    const marginTop = Math.max(0, typography.spreadPageMarginTop ?? 0)
-    const marginRight = Math.max(0, typography.spreadPageMarginRight ?? 0)
-    const marginBottom = Math.max(0, typography.spreadPageMarginBottom ?? 0)
-    const marginLeft = Math.max(0, typography.spreadPageMarginLeft ?? 0)
+    const innerMargin = Math.max(0, typography.spreadPageInnerMargin ?? 0)
+    const outerMargin = Math.max(0, typography.spreadPageOuterMargin ?? 0)
 
+    // 双页整体始终居中，outer margin 直接作用在阅读容器两侧。
     style.marginInline = 'auto'
-    style.paddingTop = `${marginTop}px`
-    style.paddingRight = `${marginRight}px`
-    style.paddingBottom = `${marginBottom}px`
-    style.paddingLeft = `${marginLeft}px`
+    style.paddingInline = `${outerMargin}px`
 
     let maxWidth = typography.spreadMaxWidth
     if (typography.spreadRespectAspectRatio) {
       const aspectRatio = parseViewportAspectRatio(tab.book.metadata.viewport)
-      const usableHeight = Math.max(
-        viewportSize.height - marginTop - marginBottom,
-        0,
-      )
+      const usableHeight = Math.max(viewportSize.height, 0)
       if (aspectRatio && usableHeight > 0) {
+        // 总宽度 = 两页内容宽 + 内侧留白 + 外侧留白。
         const aspectMaxWidth =
-          usableHeight * aspectRatio * 2 + (marginLeft + marginRight) * 2
+          usableHeight * aspectRatio * 2 + innerMargin * 2 + outerMargin * 2
         maxWidth = maxWidth
           ? Math.min(maxWidth, aspectMaxWidth)
           : aspectMaxWidth
@@ -466,10 +460,8 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     tab.book.metadata.viewport,
     typography.spread,
     typography.spreadMaxWidth,
-    typography.spreadPageMarginBottom,
-    typography.spreadPageMarginLeft,
-    typography.spreadPageMarginRight,
-    typography.spreadPageMarginTop,
+    typography.spreadPageInnerMargin,
+    typography.spreadPageOuterMargin,
     typography.spreadRespectAspectRatio,
     viewportSize.height,
   ])
@@ -479,10 +471,8 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   }, [
     typography.spread,
     typography.spreadMaxWidth,
-    typography.spreadPageMarginBottom,
-    typography.spreadPageMarginLeft,
-    typography.spreadPageMarginRight,
-    typography.spreadPageMarginTop,
+    typography.spreadPageInnerMargin,
+    typography.spreadPageOuterMargin,
     typography.spreadRespectAspectRatio,
     viewportSize.height,
   ])
