@@ -362,12 +362,19 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     }
   })
 
+  const handleWheelTurnPage = useCallback(
+    (deltaY: number) => {
+      if (deltaY < 0) {
+        tab.prev()
+      } else if (deltaY > 0) {
+        tab.next()
+      }
+    },
+    [tab],
+  )
+
   useEventListener(iframe, 'wheel', (e) => {
-    if (e.deltaY < 0) {
-      tab.prev()
-    } else {
-      tab.next()
-    }
+    handleWheelTurnPage(e.deltaY)
   })
 
   useEventListener(iframe, 'keydown', handleKeyDown(tab))
@@ -486,6 +493,11 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       <div
         ref={viewportRef}
         className={clsx('relative flex-1', isTouchScreen || 'h-0')}
+        onWheel={(e) => {
+          // 双页设置最大宽度后，两侧会出现留白；在留白区域滚轮也应保持翻页行为。
+          e.preventDefault()
+          handleWheelTurnPage(e.deltaY)
+        }}
       >
         <div
           className={clsx(
