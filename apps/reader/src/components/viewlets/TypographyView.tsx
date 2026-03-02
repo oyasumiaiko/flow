@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { MdAdd, MdRemove } from 'react-icons/md'
 
 import { RenditionSpread } from '@flow/epubjs/types/rendition'
@@ -87,6 +87,32 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
     }
   }, [localFonts])
 
+  const fontOptions = useMemo(() => {
+    const options = localFonts ? [...localFonts] : []
+    // 某些字体可能来自历史配置而不是本机字体列表，这里补回当前值，避免切换时丢失当前选项。
+    if (fontFamily && !options.includes(fontFamily)) {
+      options.unshift(fontFamily)
+    }
+    return options
+  }, [fontFamily, localFonts])
+
+  const cycleFontByWheel = useCallback(
+    (deltaY: number) => {
+      if (!fontOptions.length) return
+      const values = ['', ...fontOptions]
+      const currentValue = fontFamily ?? ''
+      const currentIndex = Math.max(values.indexOf(currentValue), 0)
+      const nextIndex = Math.min(
+        Math.max(currentIndex + (deltaY > 0 ? 1 : -1), 0),
+        values.length - 1,
+      )
+      const nextValue = values[nextIndex]
+      if (nextValue === currentValue) return
+      setTypography('fontFamily', nextValue || undefined)
+    },
+    [fontFamily, fontOptions, setTypography],
+  )
+
   return (
     <PaneView {...props}>
       <div className="typescale-body-medium flex gap-2 px-5 pb-2 !text-[13px]">
@@ -159,26 +185,28 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
             setTypography('spreadPageOuterMargin', v || undefined)
           }}
         />
-        <TextField
-          as="input"
+        <Select
           name={t('font_family')}
-          value={fontFamily}
-          placeholder="default"
-          // Tips: Datalist only appears on mouse click or keyboard input.
-          // Does not show when focused via Tab/focus() or triggered by click()
-          datalist={localFonts?.map((font) => (
+          value={fontFamily ?? ''}
+          onFocus={queryLocalFonts}
+          onMouseEnter={queryLocalFonts}
+          // 在下拉框聚焦时支持滚轮逐项切换，减少“点开-选择-关闭”的重复操作。
+          onWheel={(e) => {
+            e.preventDefault()
+            cycleFontByWheel(e.deltaY)
+          }}
+          onChange={(e) => {
+            const nextValue = e.target.value || undefined
+            setTypography('fontFamily', nextValue)
+          }}
+        >
+          <option value="">default</option>
+          {fontOptions.map((font) => (
             <option key={font} value={font}>
               {font}
             </option>
           ))}
-          onFocus={queryLocalFonts}
-          // Preload fonts to ensure `localFonts` is available on first mouse click.
-          // Without preloading, datalist dropdown will be empty for the first mouse click.
-          onMouseEnter={queryLocalFonts}
-          onChange={(e) => {
-            setTypography('fontFamily', e.target.value)
-          }}
-        />
+        </Select>
         <NumberField
           name={t('font_size')}
           min={14}
