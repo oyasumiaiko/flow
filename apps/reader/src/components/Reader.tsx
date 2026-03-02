@@ -122,9 +122,11 @@ function ReaderGroup({ index }: ReaderGroupProps) {
       onMouseDown={handleMouseDown}
       style={{ width: size }}
     >
+      {/* 仅在顶部热区触发标签栏显示，避免鼠标在正文区域移动时也显示标签栏。 */}
+      <div className="peer absolute inset-x-0 top-0 z-20 hidden h-8 sm:block" />
       <Tab.List
-        // 标签栏改为悬浮层：默认隐藏且不占据纵向布局空间，悬停/聚焦时再显式展示。
-        className="pointer-events-none absolute inset-x-0 top-0 z-30 hidden opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 sm:flex"
+        // 标签栏仅在顶部热区悬停、标签栏自身悬停/聚焦、或键盘焦点进入时显示。
+        className="pointer-events-none absolute inset-x-0 top-0 z-30 hidden opacity-0 transition-opacity focus-within:pointer-events-auto focus-within:opacity-100 hover:pointer-events-auto hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 peer-hover:pointer-events-auto peer-hover:opacity-100 sm:flex"
         onDelete={() => reader.removeGroup(index)}
       >
         {tabs.map((tab, i) => {
