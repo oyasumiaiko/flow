@@ -37,6 +37,7 @@ export default {
   'typography.double_page.respect_aspect_ratio': '尊重原书宽高比',
   'typography.double_page.page_inner_margin': '双页内侧边距',
   'typography.double_page.page_outer_margin': '双页外侧边距',
+  'typography.auto_hide_cursor': '鼠标在阅读区停留 5 秒后自动隐藏',
   'typography.font_family': '字体',
   'typography.font_size': '字号偏移',
   'typography.font_weight': '字重偏移',

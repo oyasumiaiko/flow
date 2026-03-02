@@ -38,6 +38,7 @@ export default {
     'Respect Original Book Aspect Ratio',
   'typography.double_page.page_inner_margin': 'Page Inner Margin',
   'typography.double_page.page_outer_margin': 'Page Outer Margin',
+  'typography.auto_hide_cursor': 'Auto-hide cursor after 5s in reading area',
   'typography.font_family': 'Font Family',
   'typography.font_size': 'Font Size Offset',
   'typography.font_weight': 'Font Weight Offset',

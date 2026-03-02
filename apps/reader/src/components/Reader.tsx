@@ -17,7 +17,7 @@ import useTilg from 'tilg'
 import { useSnapshot } from 'valtio'
 
 import { RenditionSpread } from '@flow/epubjs/types/rendition'
-import { navbarState } from '@flow/reader/state'
+import { navbarState, useSettings } from '@flow/reader/state'
 
 import { db } from '../db'
 import { handleFiles } from '../file'
@@ -229,9 +229,12 @@ interface BookPaneProps {
 function BookPane({ tab, onMouseDown }: BookPaneProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const renderRef = useRef<HTMLDivElement>(null)
+  const cursorHideTimerRef = useRef<number | undefined>(undefined)
   const prevSize = useRef({ width: 0, height: 0 })
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
+  const [cursorHidden, setCursorHidden] = useState(false)
   const typography = useTypography(tab)
+  const [settings] = useSettings()
   const { dark } = useColorScheme()
   const [background] = useBackground()
 
@@ -273,6 +276,57 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
 
   const setNavbar = useSetRecoilState(navbarState)
   const mobile = useMobile()
+  const autoHideCursorInReading = !!settings.autoHideCursorInReading
+  const shouldAutoHideCursor = autoHideCursorInReading && mobile === false
+
+  const clearCursorHideTimer = useCallback(() => {
+    if (cursorHideTimerRef.current === undefined) return
+    window.clearTimeout(cursorHideTimerRef.current)
+    cursorHideTimerRef.current = undefined
+  }, [])
+
+  const scheduleCursorHide = useCallback(() => {
+    if (!shouldAutoHideCursor) return
+    clearCursorHideTimer()
+    cursorHideTimerRef.current = window.setTimeout(() => {
+      setCursorHidden(true)
+    }, 5000)
+  }, [clearCursorHideTimer, shouldAutoHideCursor])
+
+  const handleReadingAreaMouseMove = useCallback(() => {
+    if (!shouldAutoHideCursor) return
+    // 仅鼠标移动会重置隐藏状态；点击和滚轮不会触发该逻辑。
+    setCursorHidden(false)
+    scheduleCursorHide()
+  }, [scheduleCursorHide, shouldAutoHideCursor])
+
+  useEffect(() => {
+    if (shouldAutoHideCursor) {
+      return () => {
+        clearCursorHideTimer()
+      }
+    }
+    clearCursorHideTimer()
+    setCursorHidden(false)
+  }, [clearCursorHideTimer, shouldAutoHideCursor])
+
+  useEffect(() => {
+    if (!iframe) return
+    const targets = [
+      iframe.document.documentElement,
+      iframe.document.body,
+    ].filter(Boolean) as HTMLElement[]
+
+    targets.forEach((el) => {
+      el.style.cursor = cursorHidden ? 'none' : ''
+    })
+
+    return () => {
+      targets.forEach((el) => {
+        el.style.cursor = ''
+      })
+    }
+  }, [cursorHidden, iframe])
 
   const applyCustomStyle = useCallback(() => {
     const contents = rendition?.getContents()[0]
@@ -323,6 +377,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   })
 
   useEventListener(iframe, 'mousedown', onMouseDown)
+  useEventListener(iframe, 'mousemove', handleReadingAreaMouseMove)
 
   useEventListener(iframe, 'click', (e) => {
     // https://developer.chrome.com/blog/tap-to-search
@@ -495,7 +550,16 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       <ReaderPaneHeader tab={tab} />
       <div
         ref={viewportRef}
-        className={clsx('relative flex-1', isTouchScreen || 'h-0')}
+        className={clsx(
+          'relative flex-1',
+          isTouchScreen || 'h-0',
+          cursorHidden && 'cursor-none',
+        )}
+        onMouseMove={handleReadingAreaMouseMove}
+        onMouseLeave={() => {
+          clearCursorHideTimer()
+          setCursorHidden(false)
+        }}
         onWheel={(e) => {
           // 双页设置最大宽度后，两侧会出现留白；在留白区域滚轮也应保持翻页行为。
           e.preventDefault()

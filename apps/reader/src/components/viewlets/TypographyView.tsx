@@ -185,6 +185,16 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
             setTypography('spreadPageOuterMargin', v || undefined)
           }}
         />
+        <Checkbox
+          name={t('auto_hide_cursor')}
+          checked={!!settings.autoHideCursorInReading}
+          onChange={(e) => {
+            setSettings((prev) => ({
+              ...prev,
+              autoHideCursorInReading: e.target.checked,
+            }))
+          }}
+        />
         <Select
           name={t('font_family')}
           value={fontFamily ?? ''}

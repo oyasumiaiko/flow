@@ -37,6 +37,7 @@ export default {
   'typography.double_page.respect_aspect_ratio': '本の元の縦横比を優先',
   'typography.double_page.page_inner_margin': '見開き内側余白',
   'typography.double_page.page_outer_margin': '見開き外側余白',
+  'typography.auto_hide_cursor': '閲覧エリアで 5 秒後にカーソルを自動で隠す',
   'typography.font_family': 'フォントファミリー',
   'typography.font_size': 'フォントサイズオフセット',
   'typography.font_weight': 'フォントウェイトオフセット',
