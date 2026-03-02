@@ -32,8 +32,8 @@ export interface Settings extends TypographyConfiguration {
 }
 
 export interface TypographyConfiguration {
-  fontSize?: string
-  fontWeight?: number
+  fontSizeOffset?: number
+  fontWeightOffset?: number
   fontFamily?: string
   lineHeight?: number
   spread?: RenditionSpread

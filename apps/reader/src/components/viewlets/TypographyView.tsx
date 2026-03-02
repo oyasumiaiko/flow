@@ -12,7 +12,7 @@ import {
 } from '@flow/reader/state'
 import { keys } from '@flow/reader/utils'
 
-import { Checkbox, Select, TextField, TextFieldProps } from '../Form'
+import { Checkbox, Label, Select, TextField, TextFieldProps } from '../Form'
 import { PaneViewProps, PaneView, Pane } from '../base'
 
 // Define an interface for the Font object
@@ -32,8 +32,8 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
 
   const {
     fontFamily,
-    fontSize,
-    fontWeight,
+    fontSizeOffset,
+    fontWeightOffset,
     lineHeight,
     zoom,
     spread,
@@ -207,23 +207,26 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
             </option>
           ))}
         </Select>
-        <NumberField
+        <OffsetSliderField
           name={t('font_size')}
-          min={14}
-          max={28}
-          defaultValue={fontSize && parseInt(fontSize)}
+          value={fontSizeOffset}
+          min={-12}
+          max={12}
+          step={1}
+          unit="px"
           onChange={(v) => {
-            setTypography('fontSize', v ? v + 'px' : undefined)
+            setTypography('fontSizeOffset', v)
           }}
         />
-        <NumberField
+        <OffsetSliderField
           name={t('font_weight')}
-          min={100}
-          max={900}
+          value={fontWeightOffset}
+          min={-500}
+          max={500}
           step={100}
-          defaultValue={fontWeight}
+          unit=""
           onChange={(v) => {
-            setTypography('fontWeight', v || undefined)
+            setTypography('fontWeightOffset', v)
           }}
         />
         <NumberField
@@ -246,6 +249,93 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
         />
       </Pane>
     </PaneView>
+  )
+}
+
+interface OffsetSliderFieldProps {
+  name: string
+  value?: number
+  min: number
+  max: number
+  step: number
+  unit?: string
+  onChange: (v?: number) => void
+}
+
+const OffsetSliderField: React.FC<OffsetSliderFieldProps> = ({
+  name,
+  value,
+  min,
+  max,
+  step,
+  unit = '',
+  onChange,
+}) => {
+  const t = useTranslation('action')
+  const rawValue = value ?? 0
+  const sliderValue = Math.min(Math.max(rawValue, min), max)
+
+  const updateValue = useCallback(
+    (next: number) => {
+      if (!Number.isFinite(next)) return
+      onChange(next === 0 ? undefined : next)
+    },
+    [onChange],
+  )
+
+  const offsetText = `${rawValue > 0 ? '+' : ''}${rawValue}${unit}`
+
+  return (
+    <div className="flex flex-col">
+      <Label name={name} />
+      <div className="bg-default flex items-center gap-1 px-1 py-1">
+        <button
+          type="button"
+          className="text-outline hover:text-on-surface-variant flex items-center"
+          title={t('step_down')}
+          onClick={() => {
+            // 滑块只负责快速拖动，真正值不封顶；两侧箭头可继续向外扩展偏移。
+            updateValue(rawValue - step)
+          }}
+        >
+          <MdRemove size={16} />
+        </button>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={sliderValue}
+          className="accent-primary h-2 flex-1 cursor-pointer"
+          onChange={(e) => {
+            updateValue(Number(e.target.value))
+          }}
+        />
+        <button
+          type="button"
+          className="text-outline hover:text-on-surface-variant flex items-center"
+          title={t('step_up')}
+          onClick={() => {
+            updateValue(rawValue + step)
+          }}
+        >
+          <MdAdd size={16} />
+        </button>
+        <button
+          type="button"
+          className="text-outline/70 hover:text-on-surface-variant border-outline/20 rounded border px-1 leading-5"
+          title={t('clear')}
+          onClick={() => {
+            onChange(undefined)
+          }}
+        >
+          0
+        </button>
+      </div>
+      <div className="typescale-label-small text-outline/70 mt-1 !text-[11px]">
+        {offsetText}
+      </div>
+    </div>
   )
 }
 

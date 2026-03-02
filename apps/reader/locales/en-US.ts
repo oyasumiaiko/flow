@@ -39,8 +39,8 @@ export default {
   'typography.double_page.page_inner_margin': 'Page Inner Margin',
   'typography.double_page.page_outer_margin': 'Page Outer Margin',
   'typography.font_family': 'Font Family',
-  'typography.font_size': 'Font Size',
-  'typography.font_weight': 'Font Weight',
+  'typography.font_size': 'Font Size Offset',
+  'typography.font_weight': 'Font Weight Offset',
   'typography.line_height': 'Line Height',
   'typography.zoom': 'Zoom',
 

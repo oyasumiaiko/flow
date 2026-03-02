@@ -38,8 +38,8 @@ export default {
   'typography.double_page.page_inner_margin': '双页内侧边距',
   'typography.double_page.page_outer_margin': '双页外侧边距',
   'typography.font_family': '字体',
-  'typography.font_size': '字号',
-  'typography.font_weight': '字重',
+  'typography.font_size': '字号偏移',
+  'typography.font_weight': '字重偏移',
   'typography.line_height': '行高',
   'typography.zoom': '缩放',
 

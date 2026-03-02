@@ -38,8 +38,8 @@ export default {
   'typography.double_page.page_inner_margin': '見開き内側余白',
   'typography.double_page.page_outer_margin': '見開き外側余白',
   'typography.font_family': 'フォントファミリー',
-  'typography.font_size': 'フォントサイズ',
-  'typography.font_weight': 'フォントウェイト',
+  'typography.font_size': 'フォントサイズオフセット',
+  'typography.font_weight': 'フォントウェイトオフセット',
   'typography.line_height': '行の高さ',
   'typography.zoom': 'ズーム',
 

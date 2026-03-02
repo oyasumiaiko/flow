@@ -36,6 +36,46 @@ enum Style {
   Custom = 'custom',
 }
 
+interface BaseTypography {
+  fontSize: number
+  fontWeight: number
+}
+
+const baseTypographyCache = new WeakMap<Contents, BaseTypography>()
+
+const parseNumber = (value: string | undefined) => {
+  const parsed = Number.parseFloat(value ?? '')
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const parseFontWeight = (value: string | undefined) => {
+  if (!value) return
+  if (value === 'normal') return 400
+  if (value === 'bold') return 700
+  return parseNumber(value)
+}
+
+function readBaseTypography(contents: Contents, body: HTMLBodyElement) {
+  const cached = baseTypographyCache.get(contents)
+  if (cached) return cached
+
+  const computedStyle = body.ownerDocument.defaultView?.getComputedStyle(body)
+  const baseTypography: BaseTypography = {
+    fontSize:
+      parseNumber(computedStyle?.fontSize) ??
+      parseNumber(body.style.fontSize) ??
+      16,
+    fontWeight:
+      parseFontWeight(computedStyle?.fontWeight) ??
+      parseFontWeight(body.style.fontWeight) ??
+      400,
+  }
+
+  baseTypographyCache.set(contents, baseTypography)
+
+  return baseTypography
+}
+
 export function updateCustomStyle(
   contents: Contents | undefined,
   settings: Settings | undefined,
@@ -43,18 +83,29 @@ export function updateCustomStyle(
 ) {
   if (!contents || !settings) return
 
-  const { zoom, spreadPageInnerMargin } = settings
+  const { zoom, spreadPageInnerMargin, fontSizeOffset, fontWeightOffset } =
+    settings
+  const body = contents.content as HTMLBodyElement
+  const baseTypography = readBaseTypography(contents, body)
+  const hasFontSizeOffset =
+    Number.isFinite(fontSizeOffset) && (fontSizeOffset ?? 0) !== 0
+  const hasFontWeightOffset =
+    Number.isFinite(fontWeightOffset) && (fontWeightOffset ?? 0) !== 0
+  // 字号/字重改为偏移模式：以当前书籍正文基准样式为锚点，再叠加用户偏移值。
   const other: CSSProperties = {
     fontFamily: settings.fontFamily,
-    fontSize: settings.fontSize,
-    fontWeight: settings.fontWeight,
+    fontSize: hasFontSizeOffset
+      ? `${Math.max(baseTypography.fontSize + (fontSizeOffset ?? 0), 1)}px`
+      : undefined,
+    fontWeight: hasFontWeightOffset
+      ? Math.max(
+          Math.round(baseTypography.fontWeight + (fontWeightOffset ?? 0)),
+          1,
+        )
+      : undefined,
     lineHeight: settings.lineHeight,
   }
-  const body = contents.content as HTMLBodyElement
-  const parseLength = (value: string | undefined) => {
-    const parsed = Number.parseFloat(value ?? '')
-    return Number.isFinite(parsed) ? parsed : undefined
-  }
+  const parseLength = parseNumber
   const readBodyLength = (property: keyof CSSStyleDeclaration) =>
     parseLength(body.style[property] as string)
   const requestedInnerMargin = isDoublePage
