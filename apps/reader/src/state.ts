@@ -27,7 +27,29 @@ export const navbarState = atom<boolean>({
   default: false,
 })
 
-export interface Settings extends TypographyConfiguration {
+export type ReaderMetaSlot =
+  | 'none'
+  | 'bookTitle'
+  | 'chapterPath'
+  | 'pageNumber'
+  | 'href'
+  | 'progress'
+
+type ReaderMetaSettings = {
+  readerHeaderLeft?: ReaderMetaSlot
+  readerHeaderRight?: ReaderMetaSlot
+  readerFooterLeft?: ReaderMetaSlot
+  readerFooterRight?: ReaderMetaSlot
+}
+
+export const defaultReaderMetaSettings: Required<ReaderMetaSettings> = {
+  readerHeaderLeft: 'chapterPath',
+  readerHeaderRight: 'pageNumber',
+  readerFooterLeft: 'href',
+  readerFooterRight: 'progress',
+}
+
+export interface Settings extends TypographyConfiguration, ReaderMetaSettings {
   theme?: ThemeConfiguration
   autoHideCursorInReading?: boolean
 }
@@ -50,7 +72,9 @@ interface ThemeConfiguration {
   background?: number
 }
 
-export const defaultSettings: Settings = {}
+export const defaultSettings: Settings = {
+  ...defaultReaderMetaSettings,
+}
 
 const settingsState = atom<Settings>({
   key: 'settings',

@@ -9,6 +9,12 @@ import {
   useForceRender,
   useTranslation,
 } from '@flow/reader/hooks'
+import {
+  defaultReaderMetaSettings,
+  ReaderMetaSlot,
+  Settings as ReaderSettings,
+  useSettings,
+} from '@flow/reader/state'
 import { dbx, mapToToken, OAUTH_SUCCESS_MESSAGE } from '@flow/reader/sync'
 
 import { Button } from '../Button'
@@ -17,6 +23,7 @@ import { Page } from '../Page'
 
 export const Settings: React.FC = () => {
   const { scheme, setScheme } = useColorScheme()
+  const [settings, setSettings] = useSettings()
   const { asPath, push, locale } = useRouter()
   const t = useTranslation('settings')
 
@@ -47,6 +54,7 @@ export const Settings: React.FC = () => {
             <option value="dark">{t('color_scheme.dark')}</option>
           </Select>
         </Item>
+        <ReaderMetaConfig settings={settings} setSettings={setSettings} />
         <Synchronization />
         <Item title={t('cache')}>
           <Button
@@ -63,6 +71,112 @@ export const Settings: React.FC = () => {
         </Item>
       </div>
     </Page>
+  )
+}
+
+const readerMetaOptions: ReaderMetaSlot[] = [
+  'none',
+  'bookTitle',
+  'chapterPath',
+  'pageNumber',
+  'href',
+  'progress',
+]
+
+interface ReaderMetaConfigProps {
+  settings: ReaderSettings
+  setSettings: (updater: (prev: ReaderSettings) => ReaderSettings) => void
+}
+
+const ReaderMetaConfig: React.FC<ReaderMetaConfigProps> = ({
+  settings,
+  setSettings,
+}) => {
+  const t = useTranslation('settings.reader_meta')
+
+  const updateSlot = (
+    key:
+      | 'readerHeaderLeft'
+      | 'readerHeaderRight'
+      | 'readerFooterLeft'
+      | 'readerFooterRight',
+    value: ReaderMetaSlot,
+  ) => {
+    setSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }))
+  }
+
+  return (
+    <Item title={t('title')}>
+      <div className="space-y-3">
+        <Select
+          name={t('header_left')}
+          value={
+            settings.readerHeaderLeft ??
+            defaultReaderMetaSettings.readerHeaderLeft
+          }
+          onChange={(e) => {
+            updateSlot('readerHeaderLeft', e.target.value as ReaderMetaSlot)
+          }}
+        >
+          {readerMetaOptions.map((value) => (
+            <option key={value} value={value}>
+              {t(`option.${value}`)}
+            </option>
+          ))}
+        </Select>
+        <Select
+          name={t('header_right')}
+          value={
+            settings.readerHeaderRight ??
+            defaultReaderMetaSettings.readerHeaderRight
+          }
+          onChange={(e) => {
+            updateSlot('readerHeaderRight', e.target.value as ReaderMetaSlot)
+          }}
+        >
+          {readerMetaOptions.map((value) => (
+            <option key={value} value={value}>
+              {t(`option.${value}`)}
+            </option>
+          ))}
+        </Select>
+        <Select
+          name={t('footer_left')}
+          value={
+            settings.readerFooterLeft ??
+            defaultReaderMetaSettings.readerFooterLeft
+          }
+          onChange={(e) => {
+            updateSlot('readerFooterLeft', e.target.value as ReaderMetaSlot)
+          }}
+        >
+          {readerMetaOptions.map((value) => (
+            <option key={value} value={value}>
+              {t(`option.${value}`)}
+            </option>
+          ))}
+        </Select>
+        <Select
+          name={t('footer_right')}
+          value={
+            settings.readerFooterRight ??
+            defaultReaderMetaSettings.readerFooterRight
+          }
+          onChange={(e) => {
+            updateSlot('readerFooterRight', e.target.value as ReaderMetaSlot)
+          }}
+        >
+          {readerMetaOptions.map((value) => (
+            <option key={value} value={value}>
+              {t(`option.${value}`)}
+            </option>
+          ))}
+        </Select>
+      </div>
+    </Item>
   )
 }
 

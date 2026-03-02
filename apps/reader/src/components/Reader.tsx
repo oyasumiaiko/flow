@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { MdChevronRight, MdWebAsset } from 'react-icons/md'
+import { MdWebAsset } from 'react-icons/md'
 import { RiBookLine } from 'react-icons/ri'
 import { PhotoSlider } from 'react-photo-view'
 import { useSetRecoilState } from 'recoil'
@@ -17,7 +17,12 @@ import useTilg from 'tilg'
 import { useSnapshot } from 'valtio'
 
 import { RenditionSpread } from '@flow/epubjs/types/rendition'
-import { navbarState, useSettings } from '@flow/reader/state'
+import {
+  defaultReaderMetaSettings,
+  navbarState,
+  ReaderMetaSlot,
+  useSettings,
+} from '@flow/reader/state'
 
 import { db } from '../db'
 import { handleFiles } from '../file'
@@ -594,9 +599,62 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
 interface ReaderPaneHeaderProps {
   tab: BookTab
 }
+
+interface ReaderMetaContext {
+  tab: BookTab
+  navPath: { label: string }[]
+  location?: {
+    start?: {
+      href?: string
+      displayed?: {
+        page?: number
+        total?: number
+      }
+    }
+  }
+  percentage?: number
+}
+
+function getReaderMetaText(slot: ReaderMetaSlot, context: ReaderMetaContext) {
+  switch (slot) {
+    case 'none':
+      return
+    case 'bookTitle':
+      return context.tab.title
+    case 'chapterPath': {
+      const labels = context.navPath
+        .map((item) => item.label?.trim())
+        .filter(Boolean)
+      return labels.length ? labels.join(' / ') : undefined
+    }
+    case 'pageNumber': {
+      const displayed = context.location?.start?.displayed
+      const page = displayed?.page
+      const total = displayed?.total
+      if (page === undefined || total === undefined) return
+      return `${page} / ${total}`
+    }
+    case 'href':
+      return context.location?.start?.href
+    case 'progress':
+      return `${((context.percentage ?? 0) * 100).toFixed()}%`
+  }
+}
+
 const ReaderPaneHeader: React.FC<ReaderPaneHeaderProps> = ({ tab }) => {
-  const { location } = useSnapshot(tab)
+  const [settings] = useSettings()
+  const { location, book } = useSnapshot(tab)
   const navPath = tab.getNavPath()
+  const context: ReaderMetaContext = {
+    tab,
+    navPath,
+    location,
+    percentage: book.percentage,
+  }
+  const leftSlot =
+    settings.readerHeaderLeft ?? defaultReaderMetaSettings.readerHeaderLeft
+  const rightSlot =
+    settings.readerHeaderRight ?? defaultReaderMetaSettings.readerHeaderRight
 
   useEffect(() => {
     navPath.forEach((i) => (i.expanded = true))
@@ -604,22 +662,8 @@ const ReaderPaneHeader: React.FC<ReaderPaneHeaderProps> = ({ tab }) => {
 
   return (
     <Bar>
-      <div className="scroll-h flex">
-        {navPath.map((item, i) => (
-          <button
-            key={i}
-            className="hover:text-on-surface flex shrink-0 items-center"
-          >
-            {item.label}
-            {i !== navPath.length - 1 && <MdChevronRight size={20} />}
-          </button>
-        ))}
-      </div>
-      {location && (
-        <div className="shrink-0">
-          {location.start.displayed.page} / {location.start.displayed.total}
-        </div>
-      )}
+      <BarSlot align="left" value={getReaderMetaText(leftSlot, context)} />
+      <BarSlot align="right" value={getReaderMetaText(rightSlot, context)} />
     </Bar>
   )
 }
@@ -628,7 +672,19 @@ interface FooterProps {
   tab: BookTab
 }
 const ReaderPaneFooter: React.FC<FooterProps> = ({ tab }) => {
+  const [settings] = useSettings()
   const { locationToReturn, location, book } = useSnapshot(tab)
+  const navPath = tab.getNavPath()
+  const context: ReaderMetaContext = {
+    tab,
+    navPath,
+    location,
+    percentage: book.percentage,
+  }
+  const leftSlot =
+    settings.readerFooterLeft ?? defaultReaderMetaSettings.readerFooterLeft
+  const rightSlot =
+    settings.readerFooterRight ?? defaultReaderMetaSettings.readerFooterRight
 
   return (
     <Bar>
@@ -653,8 +709,11 @@ const ReaderPaneFooter: React.FC<FooterProps> = ({ tab }) => {
         </>
       ) : (
         <>
-          <div>{location?.start.href}</div>
-          <div>{((book.percentage ?? 0) * 100).toFixed()}%</div>
+          <BarSlot align="left" value={getReaderMetaText(leftSlot, context)} />
+          <BarSlot
+            align="right"
+            value={getReaderMetaText(rightSlot, context)}
+          />
         </>
       )}
     </Bar>
@@ -666,10 +725,28 @@ const Bar: React.FC<LineProps> = ({ className, ...props }) => {
   return (
     <div
       className={clsx(
-        'typescale-body-small text-outline flex h-6 items-center justify-between gap-2 px-[4vw] sm:px-2',
+        'typescale-body-small text-outline flex h-6 items-center gap-2 px-[4vw] sm:px-2',
         className,
       )}
       {...props}
     ></div>
+  )
+}
+
+interface BarSlotProps {
+  align: 'left' | 'right'
+  value?: string
+}
+
+const BarSlot: React.FC<BarSlotProps> = ({ align, value }) => {
+  return (
+    <div
+      className={clsx(
+        'min-w-0 flex-1',
+        align === 'right' ? 'text-right' : 'text-left',
+      )}
+    >
+      {value && <div className="truncate">{value}</div>}
+    </div>
   )
 }
