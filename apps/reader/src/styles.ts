@@ -57,23 +57,33 @@ export function updateCustomStyle(
   }
   const readBodyLength = (property: keyof CSSStyleDeclaration) =>
     parseLength(body.style[property] as string)
-  // 双页内侧边距映射到列间距：每页内侧增加 inner，等价于总 gap 增加 2 * inner。
-  const innerSpreadGap = isDoublePage
-    ? Math.max(0, spreadPageInnerMargin ?? 0) * 2
+  const requestedInnerMargin = isDoublePage
+    ? Math.max(0, spreadPageInnerMargin ?? 0)
     : 0
+  const baseColumnWidth = readBodyLength('columnWidth')
+  // 保证双页稳定：扩大内侧边距时同步收窄列宽，避免浏览器因列不再可容纳而退化成单列。
+  const effectiveInnerMargin =
+    requestedInnerMargin > 0 && baseColumnWidth !== undefined
+      ? Math.min(requestedInnerMargin, Math.max(baseColumnWidth - 1, 0))
+      : requestedInnerMargin
   const baseColumnGap = readBodyLength('columnGap')
+  const columnWidth =
+    effectiveInnerMargin > 0 && baseColumnWidth !== undefined
+      ? baseColumnWidth - effectiveInnerMargin
+      : undefined
   const columnGap =
-    innerSpreadGap > 0 && baseColumnGap !== undefined
-      ? baseColumnGap + innerSpreadGap
+    effectiveInnerMargin > 0 && baseColumnGap !== undefined
+      ? baseColumnGap + effectiveInnerMargin * 2
       : undefined
   let css = `a, article, cite, div, li, p, pre, span, table, body {
     ${mapToCss(other)}
   }`
 
-  if (columnGap !== undefined) {
+  if (columnGap !== undefined || columnWidth !== undefined) {
     css += `body {
       ${mapToCss({
-        columnGap: `${columnGap}px`,
+        columnWidth: columnWidth ? `${columnWidth}px` : undefined,
+        columnGap: columnGap ? `${columnGap}px` : undefined,
       })}
     }`
   }
@@ -87,7 +97,7 @@ export function updateCustomStyle(
         transform: `scale(${zoom})`,
         width: scale(readBodyLength('width')),
         height: scale(readBodyLength('height')),
-        columnWidth: scale(readBodyLength('columnWidth')),
+        columnWidth: scale(columnWidth ?? readBodyLength('columnWidth')),
         columnGap: scale(columnGap ?? readBodyLength('columnGap')),
         paddingTop: scale(readBodyLength('paddingTop')),
         paddingBottom: scale(readBodyLength('paddingBottom')),
