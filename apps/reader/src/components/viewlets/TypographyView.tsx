@@ -212,7 +212,7 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
           value={fontSizeOffset}
           min={-12}
           max={12}
-          step={1}
+          step={0.25}
           unit="px"
           onChange={(v) => {
             setTypography('fontSizeOffset', v)
@@ -274,16 +274,28 @@ const OffsetSliderField: React.FC<OffsetSliderFieldProps> = ({
   const t = useTranslation('action')
   const rawValue = value ?? 0
   const sliderValue = Math.min(Math.max(rawValue, min), max)
+  const stepDecimals = useMemo(() => {
+    const stepText = String(step)
+    if (stepText.includes('e-')) {
+      const exponent = Number(stepText.split('e-')[1])
+      return Number.isFinite(exponent) ? exponent : 0
+    }
+    const decimals = stepText.split('.')[1]
+    return decimals ? decimals.length : 0
+  }, [step])
 
   const updateValue = useCallback(
     (next: number) => {
       if (!Number.isFinite(next)) return
-      onChange(next === 0 ? undefined : next)
+      // 统一按 step 精度归一化，避免 0.1/0.25 连续加减出现浮点尾差。
+      const normalized = Number.parseFloat(next.toFixed(stepDecimals))
+      onChange(normalized === 0 ? undefined : normalized)
     },
-    [onChange],
+    [onChange, stepDecimals],
   )
 
-  const offsetText = `${rawValue > 0 ? '+' : ''}${rawValue}${unit}`
+  const displayValue = Number.parseFloat(rawValue.toFixed(stepDecimals))
+  const offsetText = `${displayValue > 0 ? '+' : ''}${displayValue}${unit}`
 
   return (
     <div className="flex flex-col">
