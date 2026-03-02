@@ -118,12 +118,13 @@ function ReaderGroup({ index }: ReaderGroupProps) {
 
   return (
     <div
-      className="ReaderGroup flex flex-1 flex-col overflow-hidden focus:outline-none"
+      className="ReaderGroup group relative flex flex-1 flex-col overflow-hidden focus:outline-none"
       onMouseDown={handleMouseDown}
       style={{ width: size }}
     >
       <Tab.List
-        className="hidden sm:flex"
+        // 标签栏改为悬浮层：默认隐藏且不占据纵向布局空间，悬停/聚焦时再显式展示。
+        className="pointer-events-none absolute inset-x-0 top-0 z-30 hidden opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 sm:flex"
         onDelete={() => reader.removeGroup(index)}
       >
         {tabs.map((tab, i) => {
