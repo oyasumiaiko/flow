@@ -91,19 +91,24 @@ export function updateCustomStyle(
     Number.isFinite(fontSizeOffset) && (fontSizeOffset ?? 0) !== 0
   const hasFontWeightOffset =
     Number.isFinite(fontWeightOffset) && (fontWeightOffset ?? 0) !== 0
-  // 字号/字重改为偏移模式：以当前书籍正文基准样式为锚点，再叠加用户偏移值。
-  const other: CSSProperties = {
+  const baseFontSize = Math.max(baseTypography.fontSize, 1)
+  // 字号偏移不再直接把所有元素压成同一个 px，而是转成比例作用到 html/body，保持标题与正文的相对层级。
+  const fontSizeScale = hasFontSizeOffset
+    ? Math.max(baseFontSize + (fontSizeOffset ?? 0), 1) / baseFontSize
+    : undefined
+  const sharedTextStyle: CSSProperties = {
     fontFamily: settings.fontFamily,
-    fontSize: hasFontSizeOffset
-      ? `${Math.max(baseTypography.fontSize + (fontSizeOffset ?? 0), 1)}px`
-      : undefined,
+    lineHeight: settings.lineHeight,
+  }
+  const rootTypographyStyle: CSSProperties = {
+    fontSize:
+      fontSizeScale === undefined ? undefined : `${fontSizeScale * 100}%`,
     fontWeight: hasFontWeightOffset
       ? Math.max(
           Math.round(baseTypography.fontWeight + (fontWeightOffset ?? 0)),
           1,
         )
       : undefined,
-    lineHeight: settings.lineHeight,
   }
   const parseLength = parseNumber
   const readBodyLength = (property: keyof CSSStyleDeclaration) =>
@@ -127,8 +132,14 @@ export function updateCustomStyle(
       ? baseColumnGap + effectiveInnerMargin * 2
       : undefined
   let css = `a, article, cite, div, li, p, pre, span, table, body {
-    ${mapToCss(other)}
+    ${mapToCss(sharedTextStyle)}
   }`
+
+  if (rootTypographyStyle.fontSize || rootTypographyStyle.fontWeight) {
+    css += `html, body {
+      ${mapToCss(rootTypographyStyle)}
+    }`
+  }
 
   if (columnGap !== undefined || columnWidth !== undefined) {
     css += `body {
