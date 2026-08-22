@@ -18,7 +18,7 @@ import {
 import { dbx, mapToToken, OAUTH_SUCCESS_MESSAGE } from '@flow/reader/sync'
 
 import { Button } from '../Button'
-import { Select } from '../Form'
+import { Checkbox, Select } from '../Form'
 import { Page } from '../Page'
 
 export const Settings: React.FC = () => {
@@ -55,6 +55,18 @@ export const Settings: React.FC = () => {
           </Select>
         </Item>
         <ReaderMetaConfig settings={settings} setSettings={setSettings} />
+        <Item title={t('text_selection_menu')}>
+          <Checkbox
+            name={t('text_selection_menu.enable')}
+            checked={settings.enableTextSelectionMenu}
+            onChange={(e) => {
+              setSettings({
+                ...settings,
+                enableTextSelectionMenu: e.target.checked,
+              })
+            }}
+          />
+        </Item>
         <Synchronization />
         <Item title={t('cache')}>
           <Button

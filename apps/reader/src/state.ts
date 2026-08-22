@@ -52,6 +52,7 @@ export const defaultReaderMetaSettings: Required<ReaderMetaSettings> = {
 export interface Settings extends TypographyConfiguration, ReaderMetaSettings {
   theme?: ThemeConfiguration
   autoHideCursorInReading?: boolean
+  enableTextSelectionMenu?: boolean
 }
 
 export interface TypographyConfiguration {
