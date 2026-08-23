@@ -5,10 +5,10 @@ import {
   useEffect,
   RefObject,
   ComponentProps,
+  ComponentPropsWithoutRef,
 } from 'react'
 import { IconType } from 'react-icons'
 import { MdCheck, MdClose } from 'react-icons/md'
-import { PolymorphicPropsWithoutRef } from 'react-polymorphic-types'
 
 import { useMobile, useTranslation } from '../hooks'
 
@@ -20,19 +20,19 @@ type Action = {
   onClick: (el: HTMLInputElement | null) => void
 }
 
-export type TextFieldProps<T extends ElementType> = PolymorphicPropsWithoutRef<
-  {
-    name: string
-    hideLabel?: boolean
-    autoFocus?: boolean
-    actions?: Action[]
-    datalist?: React.ReactNode[]
-    onClear?: () => void
-    // https://react-typescript-cheatsheet.netlify.app/docs/basic/getting-started/forward_and_create_ref/#generic-forwardrefs
-    mRef?: RefObject<HTMLInputElement> | null
-  },
-  T
->
+type TextFieldOwnProps<T extends ElementType> = {
+  as?: T
+  name: string
+  hideLabel?: boolean
+  autoFocus?: boolean
+  actions?: Action[]
+  datalist?: React.ReactNode[]
+  onClear?: () => void
+  mRef?: RefObject<HTMLInputElement | null> | null
+}
+
+export type TextFieldProps<T extends ElementType> = TextFieldOwnProps<T> &
+  Omit<ComponentPropsWithoutRef<T>, keyof TextFieldOwnProps<T>>
 export function TextField<T extends ElementType = 'input'>({
   name,
   as,

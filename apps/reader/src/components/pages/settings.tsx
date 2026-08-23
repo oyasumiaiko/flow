@@ -1,12 +1,10 @@
-import { useEventListener } from '@literal-ui/hooks'
-import Dexie from 'dexie'
 import { useRouter } from 'next/router'
-import { parseCookies, destroyCookie } from 'nookies'
 
+import { db } from '@flow/reader/db'
 import {
   ColorScheme,
   useColorScheme,
-  useForceRender,
+  useCloudStatus,
   useTranslation,
 } from '@flow/reader/hooks'
 import {
@@ -15,7 +13,7 @@ import {
   Settings as ReaderSettings,
   useSettings,
 } from '@flow/reader/state'
-import { dbx, mapToToken, OAUTH_SUCCESS_MESSAGE } from '@flow/reader/sync'
+import { retryPendingCloudUpdates } from '@flow/reader/sync'
 
 import { Button } from '../Button'
 import { Checkbox, Select } from '../Form'
@@ -24,7 +22,7 @@ import { Page } from '../Page'
 export const Settings: React.FC = () => {
   const { scheme, setScheme } = useColorScheme()
   const [settings, setSettings] = useSettings()
-  const { asPath, push, locale } = useRouter()
+  const { asPath, push } = useRouter()
   const t = useTranslation('settings')
 
   return (
@@ -32,9 +30,11 @@ export const Settings: React.FC = () => {
       <div className="space-y-6">
         <Item title={t('language')}>
           <Select
-            value={locale}
+            value={settings.locale ?? 'en-US'}
             onChange={(e) => {
-              push(asPath, undefined, { locale: e.target.value })
+              const locale = e.target.value as ReaderSettings['locale']
+              setSettings((previous) => ({ ...previous, locale }))
+              push(asPath, undefined, { locale })
             }}
           >
             <option value="en-US">English</option>
@@ -71,11 +71,9 @@ export const Settings: React.FC = () => {
         <Item title={t('cache')}>
           <Button
             variant="secondary"
-            onClick={() => {
-              window.localStorage.clear()
-              Dexie.getDatabaseNames().then((names) => {
-                names.forEach((n) => Dexie.delete(n))
-              })
+            onClick={async () => {
+              await Promise.all([db?.files.clear(), db?.covers.clear()])
+              window.location.reload()
             }}
           >
             {t('cache.clear')}
@@ -193,62 +191,28 @@ const ReaderMetaConfig: React.FC<ReaderMetaConfigProps> = ({
 }
 
 const Synchronization: React.FC = () => {
-  const cookies = parseCookies()
-  const refreshToken = cookies[mapToToken['dropbox']]
-  const render = useForceRender()
   const t = useTranslation('settings.synchronization')
-
-  useEventListener('message', (e) => {
-    if (e.data === OAUTH_SUCCESS_MESSAGE) {
-      // init app (generate access token, fetch remote data, etc.)
-      window.location.reload()
-    }
-  })
+  const status = useCloudStatus()
 
   return (
     <Item title={t('title')}>
-      <Select>
-        <option value="dropbox">Dropbox</option>
-      </Select>
-      <div className="mt-2">
-        {refreshToken ? (
-          <Button
-            variant="secondary"
-            onClick={() => {
-              destroyCookie(null, mapToToken['dropbox'])
-              render()
-            }}
-          >
-            {t('unauthorize')}
-          </Button>
-        ) : (
-          <Button
-            onClick={() => {
-              const redirectUri =
-                window.location.origin + '/api/callback/dropbox'
-
-              dbx.auth
-                .getAuthenticationUrl(
-                  redirectUri,
-                  JSON.stringify({ redirectUri }),
-                  'code',
-                  'offline',
-                )
-                .then((url) => {
-                  window.open(url as string, '_blank')
-                })
-            }}
-          >
-            {t('authorize')}
-          </Button>
-        )}
-      </div>
+      <p className="text-on-surface-variant">{t('sites_description')}</p>
+      <p className="mt-2 break-words">
+        {t(`status.${status.state}`)}
+        {status.message ? `：${status.message}` : ''}
+      </p>
+      {status.state === 'error' && (
+        <Button className="mt-2" onClick={retryPendingCloudUpdates}>
+          {t('retry')}
+        </Button>
+      )}
     </Item>
   )
 }
 
 interface PartProps {
   title: string
+  children?: React.ReactNode
 }
 const Item: React.FC<PartProps> = ({ title, children }) => {
   return (

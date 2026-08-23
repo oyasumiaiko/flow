@@ -1,7 +1,15 @@
 {
   "extends": "../../tsconfig.next.json",
   "compilerOptions": {
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "moduleResolution": "bundler",
+    "types": [
+      "vinext/types",
+      "@cloudflare/workers-types",
+      "react",
+      "react-dom",
+      "node"
+    ]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

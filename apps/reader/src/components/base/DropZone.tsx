@@ -9,6 +9,7 @@ import {
 } from 'react'
 
 interface DropZoneProps {
+  children?: React.ReactNode
   className?: string
   onDrop?: (e: DragEvent<HTMLDivElement>, position?: Position) => void
   split?: boolean
@@ -124,9 +125,9 @@ const DropZoneInner: React.FC<DropZoneProps> = ({
 
 const DndContext = createContext<{
   dragover: boolean
-  setDragEvent: (e?: DragEvent) => void
-}>({ dragover: false, setDragEvent: () => {} })
-const DndProvider: React.FC = ({ children }) => {
+  setDragEvent: (_event?: DragEvent) => void
+}>({ dragover: false, setDragEvent: (_event?: DragEvent) => {} })
+const DndProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [dragover, setDragover] = useState(false)
 
   const setDragEvent = useCallback((e?: DragEvent) => {

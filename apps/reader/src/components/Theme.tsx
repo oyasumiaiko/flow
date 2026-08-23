@@ -1,7 +1,7 @@
 import {
   themeFromSourceColor,
   argbFromHex,
-  Theme,
+  type Theme as MaterialTheme,
 } from '@material/material-color-utilities'
 import Head from 'next/head'
 import { useEffect, useMemo } from 'react'
@@ -32,7 +32,7 @@ function camelToSnake(s: string) {
   return s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 }
 
-function generateCss(theme: Theme) {
+function generateCss(theme: MaterialTheme) {
   const tones = range(4).map((i) => (i + 5) * 10)
   const generateRef = () => {
     return Object.entries(theme.palettes)

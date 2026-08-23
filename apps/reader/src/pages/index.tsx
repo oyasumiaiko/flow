@@ -12,68 +12,59 @@ import {
   MdOutlineShare,
 } from 'react-icons/md'
 import { useSet } from 'react-use'
-import { usePrevious } from 'react-use'
 
-import { ReaderGridView, Button, TextField, DropZone } from '../components'
+import { Button, DropZone, ReaderGridView, TextField } from '../components'
 import { BookRecord, CoverRecord, db } from '../db'
-import { addFile, fetchBook, handleFiles } from '../file'
+import { fetchBook, handleFiles } from '../file'
 import {
   useDisablePinchZooming,
   useLibrary,
   useMobile,
   useRemoteBooks,
-  useRemoteFiles,
   useTranslation,
 } from '../hooks'
 import { reader, useReaderSnapshot } from '../models'
 import { lock } from '../styles'
-import { dbx, pack, uploadData } from '../sync'
+import { deleteCloudBooks } from '../sync'
 import { copy } from '../utils'
 
 const placeholder = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect fill="gray" fill-opacity="0" width="1" height="1"/></svg>`
-
 const SOURCE = 'src'
 
 export default function Index() {
   const { focusedTab } = useReaderSnapshot()
   const router = useRouter()
-  const src = new URL(window.location.href).searchParams.get(SOURCE)
-  const [loading, setLoading] = useState(!!src)
+  const [loading, setLoading] = useState(false)
 
   useDisablePinchZooming()
 
   useEffect(() => {
-    let src = router.query[SOURCE]
-    if (!src) return
-    if (!Array.isArray(src)) src = [src]
+    let source = router.query[SOURCE]
+    if (!source) return
+    if (!Array.isArray(source)) source = [source]
+    setLoading(true)
 
-    Promise.all(
-      src.map((s) =>
-        fetchBook(s).then((b) => {
-          reader.addTab(b)
-        }),
-      ),
-    ).finally(() => setLoading(false))
+    Promise.all(source.map((url) => fetchBook(url)))
+      .then((books) => books.forEach((book) => reader.addTab(book)))
+      .catch(showError)
+      .finally(() => setLoading(false))
   }, [router.query])
 
   useEffect(() => {
     if ('launchQueue' in window && 'LaunchParams' in window) {
       window.launchQueue.setConsumer((params) => {
-        console.log('launchQueue', params)
-        if (params.files.length) {
-          Promise.all(params.files.map((f) => f.getFile()))
-            .then((files) => handleFiles(files))
-            .then((books) => books.forEach((b) => reader.addTab(b)))
-        }
+        if (!params.files.length) return
+        Promise.all(params.files.map((file) => file.getFile()))
+          .then((files) => handleFiles(files))
+          .then((books) => books.forEach((book) => reader.addTab(book)))
+          .catch(showError)
       })
     }
   }, [])
 
   useEffect(() => {
     router.beforePopState(({ url }) => {
-      if (url === '/') {
-        reader.clear()
-      }
+      if (url === '/') reader.clear()
       return true
     })
   }, [router])
@@ -81,8 +72,6 @@ export default function Index() {
   return (
     <>
       <Head>
-        {/* https://github.com/microsoft/vscode/blob/36fdf6b697cba431beb6e391b5a8c5f3606975a1/src/vs/code/browser/workbench/workbench.html#L16 */}
-        {/* Disable pinch zooming */}
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no"
@@ -99,117 +88,141 @@ const Library: React.FC = () => {
   const books = useLibrary()
   const covers = useLiveQuery(() => db?.covers.toArray() ?? [])
   const t = useTranslation('home')
-
-  const { data: remoteBooks, mutate: mutateRemoteBooks } = useRemoteBooks()
-  const { data: remoteFiles, mutate: mutateRemoteFiles } = useRemoteFiles()
-  const previousRemoteBooks = usePrevious(remoteBooks)
-  const previousRemoteFiles = usePrevious(remoteFiles)
+  const remote = useRemoteBooks()
+  const [ready, setReady] = useState(false)
 
   const [select, toggleSelect] = useBoolean(false)
   const [selectedBookIds, { add, has, toggle, reset }] = useSet<string>()
-
-  const [loading, setLoading] = useState<string | undefined>()
-  const [readyToSync, setReadyToSync] = useState(false)
-
   const { groups } = useReaderSnapshot()
 
   useEffect(() => {
-    if (previousRemoteFiles && remoteFiles) {
-      // to remove effect dependency `books`
-      db?.books.toArray().then((books) => {
-        if (books.length === 0) return
+    if (!remote.data || !db) return
+    const database = db
+    const remoteBooks = remote.data
 
-        const newRemoteBooks = remoteFiles.map((f) =>
-          books.find((b) => b.name === f.name),
-        ) as BookRecord[]
+    database
+      .transaction(
+        'rw',
+        database.books,
+        database.covers,
+        database.files,
+        async () => {
+          const localBooks = await database.books.toArray()
+          const remoteIds = new Set(remoteBooks.map((book) => book.id))
+          const removedIds = localBooks
+            .filter((book) => !remoteIds.has(book.id))
+            .map((book) => book.id)
+          if (removedIds.length > 0) {
+            await Promise.all([
+              database.books.bulkDelete(removedIds),
+              database.covers.bulkDelete(removedIds),
+              database.files.bulkDelete(removedIds),
+            ])
+          }
 
-        uploadData(newRemoteBooks)
-        mutateRemoteBooks(newRemoteBooks, { revalidate: false })
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mutateRemoteBooks, remoteFiles])
-
-  useEffect(() => {
-    if (!previousRemoteBooks && remoteBooks) {
-      db?.books.bulkPut(remoteBooks).then(() => setReadyToSync(true))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteBooks])
-
-  useEffect(() => {
-    if (!remoteFiles || !readyToSync) return
-
-    db?.books.toArray().then(async (books) => {
-      for (const remoteFile of remoteFiles) {
-        const book = books.find((b) => b.name === remoteFile.name)
-        if (!book) continue
-
-        const file = await db?.files.get(book.id)
-        if (file) continue
-
-        setLoading(book.id)
-        await dbx
-          .filesDownload({ path: `/files/${remoteFile.name}` })
-          .then((d) => {
-            const blob: Blob = (d.result as any).fileBlob
-            return addFile(book.id, new File([blob], book.name))
+          const mergedBooks = remoteBooks.map((cloudBook) => {
+            const localBook = localBooks.find(
+              (book) => book.id === cloudBook.id,
+            )
+            if (
+              localBook &&
+              (localBook.updatedAt ?? 0) > (cloudBook.updatedAt ?? 0)
+            ) {
+              return {
+                ...cloudBook,
+                ...localBook,
+                version: cloudBook.version,
+                contentUrl: cloudBook.contentUrl,
+                coverUrl: cloudBook.coverUrl,
+              }
+            }
+            return cloudBook
           })
-        setLoading(undefined)
-      }
-    })
-  }, [readyToSync, remoteFiles])
+          await database.books.bulkPut(mergedBooks)
+          await database.covers.bulkPut(
+            remoteBooks.map((book) => ({
+              id: book.id,
+              cover: book.coverUrl ?? null,
+            })),
+          )
+        },
+      )
+      .then(() => setReady(true))
+      .catch(showError)
+  }, [remote.data])
 
   useEffect(() => {
     if (!select) reset()
   }, [reset, select])
 
   if (groups.length) return null
-  if (!books) return null
+  if (remote.error) {
+    return (
+      <main className="flex h-full items-center justify-center p-6">
+        <div className="max-w-lg space-y-4 text-center">
+          <h1 className="typescale-title-large">{t('cloud_load_failed')}</h1>
+          <p className="text-on-surface-variant break-words">
+            {remote.error.message}
+          </p>
+          <Button onClick={() => void remote.mutate()}>{t('retry')}</Button>
+        </div>
+      </main>
+    )
+  }
+  if (!ready || !books) return null
 
   const selectedBooks = [...selectedBookIds].map(
-    (id) => books.find((b) => b.id === id)!,
+    (id) => books.find((book) => book.id === id)!,
   )
   const allSelected = selectedBookIds.size === books.length
 
   return (
     <DropZone
       className="scroll-parent h-full p-4"
-      onDrop={(e) => {
-        const bookId = e.dataTransfer.getData('text/plain')
-        const book = books.find((b) => b.id === bookId)
-        if (book) reader.addTab(book)
-
-        handleFiles(e.dataTransfer.files)
+      onDrop={async (event) => {
+        const bookId = event.dataTransfer.getData('text/plain')
+        const book = books.find((candidate) => candidate.id === bookId)
+        if (book) {
+          reader.addTab(book)
+          return
+        }
+        try {
+          await handleFiles(event.dataTransfer.files)
+          await remote.mutate()
+        } catch (error) {
+          showError(error)
+        }
       }}
     >
       <div className="mb-4 space-y-2.5">
-        <div>
-          <TextField
-            name={SOURCE}
-            placeholder="https://link.to/remote.epub"
-            type="url"
-            hideLabel
-            actions={[
-              {
-                title: t('share'),
-                Icon: MdOutlineShare,
-                onClick(el) {
-                  if (el?.reportValidity()) {
-                    copy(`${window.location.origin}/?${SOURCE}=${el.value}`)
-                  }
-                },
+        <TextField
+          name={SOURCE}
+          placeholder="https://link.to/remote.epub"
+          type="url"
+          hideLabel
+          actions={[
+            {
+              title: t('share'),
+              Icon: MdOutlineShare,
+              onClick(element) {
+                if (element?.reportValidity()) {
+                  copy(`${window.location.origin}/?${SOURCE}=${element.value}`)
+                }
               },
-              {
-                title: t('download'),
-                Icon: MdOutlineFileDownload,
-                onClick(el) {
-                  if (el?.reportValidity()) fetchBook(el.value)
-                },
+            },
+            {
+              title: t('download'),
+              Icon: MdOutlineFileDownload,
+              onClick(element) {
+                if (element?.reportValidity()) {
+                  fetchBook(element.value)
+                    .then(() => remote.mutate())
+                    .catch(showError)
+                }
               },
-            ]}
-          />
-        </div>
+            },
+          ]}
+        />
         <div className="flex items-center justify-between gap-4">
           <div className="space-x-2">
             {books.length ? (
@@ -219,11 +232,12 @@ const Library: React.FC = () => {
             ) : (
               <Button
                 variant="secondary"
-                disabled={!books}
                 onClick={() => {
                   fetchBook(
                     'https://epubtest.org/books/Fundamental-Accessibility-Tests-Basic-Functionality-v1.0.0.epub',
                   )
+                    .then(() => remote.mutate())
+                    .catch(showError)
                 }}
               >
                 {t('download_sample_book')}
@@ -237,7 +251,7 @@ const Library: React.FC = () => {
               ) : (
                 <Button
                   variant="secondary"
-                  onClick={() => books.forEach((b) => add(b.id))}
+                  onClick={() => books.forEach((book) => add(book.id))}
                 >
                   {t('select_all')}
                 </Button>
@@ -246,84 +260,59 @@ const Library: React.FC = () => {
 
           <div className="space-x-2">
             {select ? (
-              <>
-                <Button
-                  onClick={async () => {
+              <Button
+                onClick={async () => {
+                  try {
+                    const ids = selectedBooks.map((book) => book.id)
+                    await deleteCloudBooks(ids)
+                    const database = db
+                    if (!database) {
+                      throw new Error('Flow local EPUB cache is unavailable')
+                    }
+                    await database.transaction(
+                      'rw',
+                      database.books,
+                      database.covers,
+                      database.files,
+                      async () => {
+                        await Promise.all([
+                          database.books.bulkDelete(ids),
+                          database.covers.bulkDelete(ids),
+                          database.files.bulkDelete(ids),
+                        ])
+                      },
+                    )
                     toggleSelect()
-
-                    for (const book of selectedBooks) {
-                      const remoteFile = remoteFiles?.find(
-                        (f) => f.name === book.name,
-                      )
-                      if (remoteFile) continue
-
-                      const file = await db?.files.get(book.id)
-                      if (!file) continue
-
-                      setLoading(book.id)
-                      await dbx.filesUpload({
-                        path: `/files/${book.name}`,
-                        contents: file.file,
-                      })
-                      setLoading(undefined)
-
-                      mutateRemoteFiles()
+                    await remote.mutate()
+                  } catch (error) {
+                    showError(error)
+                  }
+                }}
+              >
+                {t('delete')}
+              </Button>
+            ) : (
+              <Button className="relative">
+                <input
+                  type="file"
+                  accept="application/epub+zip,application/epub,.epub"
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  onChange={async (event) => {
+                    try {
+                      if (event.target.files) {
+                        await handleFiles(event.target.files)
+                        await remote.mutate()
+                      }
+                    } catch (error) {
+                      showError(error)
+                    } finally {
+                      event.target.value = ''
                     }
                   }}
-                >
-                  {t('upload')}
-                </Button>
-                <Button
-                  onClick={async () => {
-                    toggleSelect()
-                    const bookIds = [...selectedBookIds]
-
-                    db?.books.bulkDelete(bookIds)
-                    db?.covers.bulkDelete(bookIds)
-                    db?.files.bulkDelete(bookIds)
-
-                    // folder data is not updated after `filesDeleteBatch`
-                    mutateRemoteFiles(
-                      async (data) => {
-                        await dbx.filesDeleteBatch({
-                          entries: selectedBooks.map((b) => ({
-                            path: `/files/${b.name}`,
-                          })),
-                        })
-                        return data?.filter(
-                          (f) => !selectedBooks.find((b) => b.name === f.name),
-                        )
-                      },
-                      { revalidate: false },
-                    )
-                  }}
-                >
-                  {t('delete')}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="secondary"
-                  disabled={!books.length}
-                  onClick={pack}
-                >
-                  {t('export')}
-                </Button>
-                <Button className="relative">
-                  <input
-                    type="file"
-                    accept="application/epub+zip,application/epub,application/zip"
-                    className="absolute inset-0 cursor-pointer opacity-0"
-                    onChange={(e) => {
-                      const files = e.target.files
-                      if (files) handleFiles(files)
-                    }}
-                    multiple
-                  />
-                  {t('import')}
-                </Button>
-              </>
+                  multiple
+                />
+                {t('import')}
+              </Button>
             )}
           </div>
         </div>
@@ -345,7 +334,6 @@ const Library: React.FC = () => {
               covers={covers}
               select={select}
               selected={has(book.id)}
-              loading={loading === book.id}
               toggle={toggle}
             />
           ))}
@@ -360,25 +348,19 @@ interface BookProps {
   covers?: CoverRecord[]
   select?: boolean
   selected?: boolean
-  loading?: boolean
   toggle: (id: string) => void
 }
+
 const Book: React.FC<BookProps> = ({
   book,
   covers,
   select,
   selected,
-  loading,
   toggle,
 }) => {
-  const remoteFiles = useRemoteFiles()
-
   const router = useRouter()
   const mobile = useMobile()
-
-  const cover = covers?.find((c) => c.id === book.id)?.cover
-  const remoteFile = remoteFiles.data?.find((f) => f.name === book.name)
-
+  const cover = covers?.find((candidate) => candidate.id === book.id)?.cover
   const Icon = selected ? MdCheckBox : MdCheckBoxOutlineBlank
 
   return (
@@ -389,18 +371,12 @@ const Book: React.FC<BookProps> = ({
         onClick={async () => {
           if (select) {
             toggle(book.id)
-          } else {
-            if (mobile) await router.push('/_')
-            reader.addTab(book)
+            return
           }
+          if (mobile) await router.push('/_')
+          reader.addTab(book)
         }}
       >
-        <div
-          className={clsx(
-            'absolute bottom-0 h-1 bg-blue-500',
-            loading && 'progress-bit w-[5%]',
-          )}
-        />
         {book.percentage !== undefined && (
           <div className="typescale-body-large absolute right-0 bg-gray-500/60 px-2 text-gray-100">
             {(book.percentage * 100).toFixed()}%
@@ -429,15 +405,15 @@ const Book: React.FC<BookProps> = ({
         className="line-clamp-2 text-on-surface-variant typescale-body-small lg:typescale-body-medium mt-2 w-full"
         title={book.name}
       >
-        <MdCheckCircle
-          className={clsx(
-            'mr-1 mb-0.5 inline',
-            remoteFile ? 'text-tertiary' : 'text-surface-variant',
-          )}
-          size={16}
-        />
+        <MdCheckCircle className="text-tertiary mr-1 mb-0.5 inline" size={16} />
         {book.name}
       </div>
     </div>
   )
+}
+
+function showError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(error)
+  window.alert(message)
 }

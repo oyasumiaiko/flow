@@ -75,9 +75,8 @@ const background = {
 function PreventFlash() {
   const setColorScheme = () => {
     const mql = window.matchMedia('(prefers-color-scheme: dark)')
-    const scheme = localStorage.getItem('literal-color-scheme') ?? 'system'
-
-    if (scheme === '"dark"' || (scheme === '"system"' && mql.matches)) {
+    // 用户偏好会在应用启动时从 Sites D1 加载；首屏只按系统颜色避免读取本地存储。
+    if (mql.matches) {
       document.documentElement.classList.toggle('dark', true)
       document
         .querySelector('#theme-color')

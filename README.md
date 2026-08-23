@@ -17,8 +17,8 @@
 - Highlight and Annotation
 - Theme
 - Share/Download book with link
-- Data export
-- Cloud storage
+- ChatGPT account-isolated data
+- Sites object storage and cross-device synchronization
 
 For planed features, see our [roadmap](https://pacexy.notion.site/283696d0071c43bfb03652e8e5f47936?v=b43f4dd7a3cb4ce785d6c32b698a8ff5).
 

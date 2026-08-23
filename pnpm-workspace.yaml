@@ -1,5 +1,3 @@
 packages:
   - 'apps/*'
-  # Sites 使用其官方 vinext/npm 构建链，避免根工作区误改它的锁文件。
-  - '!apps/sites-reader'
   - 'packages/*'

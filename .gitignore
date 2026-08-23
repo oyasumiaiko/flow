@@ -13,6 +13,10 @@ coverage
 out/
 build
 dist
+.vinext/
+.wrangler/
+outputs/
+*.tsbuildinfo
 
 # misc
 .DS_Store

@@ -1,15 +1,13 @@
 import { useMediaQuery } from '@literal-ui/hooks'
-import { useEffect } from 'react'
-import useLocalStorageState from 'use-local-storage-state'
+import { useCallback, useEffect } from 'react'
 
-export type ColorScheme = 'light' | 'dark' | 'system'
+import { ColorScheme, useSettings } from '@flow/reader/state'
+
+export type { ColorScheme }
 
 export function useColorScheme() {
-  const [scheme, setScheme] = useLocalStorageState<ColorScheme>(
-    'literal-color-scheme',
-    { defaultValue: 'system' },
-  )
-
+  const [settings, setSettings] = useSettings()
+  const scheme = settings.colorScheme ?? 'system'
   const prefersDark = useMediaQuery('(prefers-color-scheme: dark)')
   const dark = scheme === 'dark' || (scheme === 'system' && prefersDark)
 
@@ -18,6 +16,13 @@ export function useColorScheme() {
       document.documentElement.classList.toggle('dark', dark)
     }
   }, [dark])
+
+  const setScheme = useCallback(
+    (next: ColorScheme) => {
+      setSettings((previous) => ({ ...previous, colorScheme: next }))
+    },
+    [setSettings],
+  )
 
   return { scheme, dark, setScheme }
 }

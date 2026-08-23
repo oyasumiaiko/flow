@@ -32,6 +32,13 @@ export interface BookRecord {
   configuration?: {
     typography?: TypographyConfiguration
   }
+  /** Sites D1 的乐观并发版本号；本地 Dexie 只保存它作为同步缓存。 */
+  version?: number
+  /** Sites R2 的同源读取地址，不包含任何可伪造的用户身份。 */
+  contentUrl?: string
+  coverUrl?: string | null
+  contentType?: string
+  contentSha256?: string
 }
 
 export class DB extends Dexie {

@@ -12,6 +12,7 @@ import { AnnotationColor, AnnotationType } from '../annotation'
 import { BookRecord, db } from '../db'
 import { fileToEpub } from '../file'
 import { defaultStyle } from '../styles'
+import { ensureCloudBookFile } from '../sync'
 
 import { dfs, find, INode } from './tree'
 
@@ -332,10 +333,8 @@ export class BookTab extends BaseTab {
     if (el === this._el) return
     this._el = ref(el)
 
-    const file = await db?.files.get(this.book.id)
-    if (!file) return
-
-    this.epub = ref(await fileToEpub(file.file))
+    const file = await ensureCloudBookFile(this.book)
+    this.epub = ref(await fileToEpub(file))
 
     this.epub.loaded.navigation.then((nav) => {
       this.nav = nav
@@ -417,7 +416,7 @@ export class BookTab extends BaseTab {
     this.rendition.on('rendered', (section: ISection, view: any) => {
       console.log('rendered', [section, view])
       this.section = ref(section)
-      this.iframe = ref(view.window as Window)
+      this.iframe = ref(view.window as Window) as unknown as Window & AsRef
     })
     this.rendition.on('selected', (...args: any[]) => {
       console.log('selected', args)
@@ -586,8 +585,10 @@ subscribe(reader, () => {
   console.log(snapshot(reader))
 })
 
-export function useReaderSnapshot() {
-  return useSnapshot(reader)
+export function useReaderSnapshot(): Reader {
+  // 对外只暴露只读使用约定，但避免把含 Window/Range 的完整 Valtio 深层快照类型
+  // 扩散到每个组件并触发 TypeScript 的无限递归实例化。
+  return useSnapshot(reader) as unknown as Reader
 }
 
 declare global {

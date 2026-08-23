@@ -1,5 +1,6 @@
 import { Overlay } from '@literal-ui/core'
 import clsx from 'clsx'
+import { useAtom } from 'jotai'
 import { ComponentProps, useEffect, useState } from 'react'
 import { useMemo } from 'react'
 import { IconType } from 'react-icons'
@@ -12,14 +13,14 @@ import {
   MdOutlineLightMode,
 } from 'react-icons/md'
 import { RiFontSize, RiHome6Line, RiSettings5Line } from 'react-icons/ri'
-import { useRecoilState } from 'recoil'
 
 import {
   Env,
-  Action,
+  type Action as ActionName,
   useAction,
   useBackground,
   useColorScheme,
+  useCloudStatus,
   useMobile,
   useSetAction,
   useTranslation,
@@ -27,6 +28,7 @@ import {
 import { reader, useReaderSnapshot } from '../models'
 import { navbarState } from '../state'
 import { activeClass } from '../styles'
+import { retryPendingCloudUpdates } from '../sync'
 
 import { SplitView, useSplitViewItem } from './base'
 import { Settings } from './pages'
@@ -38,7 +40,7 @@ import { TimelineView } from './viewlets/TimelineView'
 import { TocView } from './viewlets/TocView'
 import { TypographyView } from './viewlets/TypographyView'
 
-export const Layout: React.FC = ({ children }) => {
+export const Layout: React.FC<React.PropsWithChildren> = ({ children }) => {
   useColorScheme()
 
   const [ready, setReady] = useState(false)
@@ -59,6 +61,22 @@ export const Layout: React.FC = ({ children }) => {
         {ready && <SideBar />}
         {ready && <Reader>{children}</Reader>}
       </SplitView>
+      <CloudSyncError />
+    </div>
+  )
+}
+
+function CloudSyncError() {
+  const status = useCloudStatus()
+  const t = useTranslation('cloud')
+  if (status.state !== 'error') return null
+
+  return (
+    <div className="bg-error-container text-on-error-container fixed right-4 top-4 z-50 max-w-sm rounded px-4 py-3 shadow-lg">
+      <p className="break-words">{status.message ?? t('sync_failed')}</p>
+      <button className="mt-2 underline" onClick={retryPendingCloudUpdates}>
+        {t('retry')}
+      </button>
     </div>
   )
 }
@@ -70,7 +88,7 @@ interface IAction {
   env: number
 }
 interface IViewAction extends IAction {
-  name: Action
+  name: ActionName
   View: React.FC<any>
 }
 
@@ -221,7 +239,7 @@ function PageActionBar({ env }: EnvActionBarProps) {
 function NavigationBar() {
   const r = useReaderSnapshot()
   const readMode = r.focusedTab?.isBook
-  const [visible, setVisible] = useRecoilState(navbarState)
+  const [visible, setVisible] = useAtom(navbarState)
 
   return (
     <>
@@ -320,7 +338,7 @@ const SideBar: React.FC = () => {
 }
 
 interface ReaderProps extends ComponentProps<'div'> {}
-const Reader: React.FC = ({ className, ...props }: ReaderProps) => {
+const Reader: React.FC<ReaderProps> = ({ className, ...props }) => {
   useSplitViewItem(Reader)
   const [bg] = useBackground()
 

@@ -31,7 +31,7 @@
       "3": "Highlight and Annotation",
       "4": "Theme",
       "5": "Share/Download book with link",
-      "6": "Data export",
+      "6": "ChatGPT account isolation",
       "7": "Cloud storage"
     }
   },
@@ -41,16 +41,16 @@
       "desc": "Flow is progressive web app (PWA), which means it is cross-platform and installable."
     },
     "1": {
-      "title": "Offline first",
-      "desc": "Flow can be run offline (after installation), and when not offline, Flow will update automatically."
+      "title": "Cross-device synchronization",
+      "desc": "Use the same ChatGPT account to share one library, reading progress, annotations, and preferences across phones and computers."
     },
     "2": {
       "title": "Grid layout",
       "desc": "Flow supports (horizontal) grid layout, which allows you to read multiple books at the same time."
     },
     "3": {
-      "title": "Custom cloud storage",
-      "desc": "Store your books, notes, reading progress and even other data in the cloud you specified."
+      "title": "Sites cloud storage",
+      "desc": "EPUB files and covers are stored in Sites object storage, while reading data and preferences are stored in the user-isolated Sites database."
     }
   },
 
@@ -66,15 +66,15 @@
     },
     "2": {
       "q": "Where are my data stored?",
-      "a": "Your data is stored locally in your browser, using <a target='_blank' href='https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API'>IndexedDB</a>. If you upload a book, there will be a remote copy in the cloud."
+      "a": "EPUB files and covers are stored in Sites object storage. Library records, reading progress, annotations, and preferences are stored in the Sites database and isolated by ChatGPT account. IndexedDB is used only as a local EPUB cache."
     },
     "3": {
       "q": "How to clear my data?",
-      "a": "Local data: clear the browser cache.<br/>Remote data: select and delete the book you want to clear (this will also clear the local one)."
+      "a": "Select and delete a book to remove it from Sites and from the local cache. Use the cache action in Settings to clear only downloaded local EPUB copies."
     },
     "4": {
       "q": "What cloud storage do you support?",
-      "a": "Only Dropbox for now."
+      "a": "Flow uses the storage and user-isolated database provided by Sites. Dropbox and ZIP backup synchronization are no longer separate storage paths."
     }
   }
 }

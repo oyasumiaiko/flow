@@ -1,5 +1,6 @@
 import { useEventListener } from '@literal-ui/hooks'
 import clsx from 'clsx'
+import { useSetAtom } from 'jotai'
 import React, {
   CSSProperties,
   ComponentProps,
@@ -12,8 +13,6 @@ import React, {
 import { MdWebAsset } from 'react-icons/md'
 import { RiBookLine } from 'react-icons/ri'
 import { PhotoSlider } from 'react-photo-view'
-import { useSetRecoilState } from 'recoil'
-import useTilg from 'tilg'
 import { useSnapshot } from 'valtio'
 
 import { RenditionSpread } from '@flow/epubjs/types/rendition'
@@ -109,7 +108,10 @@ interface ReaderGroupProps {
 function ReaderGroup({ index }: ReaderGroupProps) {
   const group = reader.groups[index]!
   const { focusedIndex } = useReaderSnapshot()
-  const { tabs, selectedIndex } = useSnapshot(group)
+  const { tabs, selectedIndex } = useSnapshot(group as any) as {
+    tabs: any[]
+    selectedIndex: number
+  }
   const t = useTranslation()
 
   const { size } = useSplitViewItem(`${ReaderGroup.name}.${index}`, {
@@ -221,6 +223,7 @@ function ReaderGroup({ index }: ReaderGroupProps) {
 
 interface PaneContainerProps {
   active: boolean
+  children?: React.ReactNode
 }
 const PaneContainer: React.FC<PaneContainerProps> = ({ active, children }) => {
   return <div className={clsx('h-full', active || 'hidden')}>{children}</div>
@@ -244,8 +247,6 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   const [background] = useBackground()
 
   const { iframe, rendition, rendered, container } = useSnapshot(tab)
-
-  useTilg()
 
   useEffect(() => {
     const el = viewportRef.current
@@ -279,7 +280,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
 
   useSync(tab)
 
-  const setNavbar = useSetRecoilState(navbarState)
+  const setNavbar = useSetAtom(navbarState)
   const mobile = useMobile()
   const autoHideCursorInReading = !!settings.autoHideCursorInReading
   const shouldAutoHideCursor = autoHideCursorInReading && mobile === false
@@ -452,9 +453,10 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     // When selecting text with long tap, `touchend` is not fired,
     // so instead of use `addEventlistener`, we should use `on*`
     // to remove the previous listener.
-    iframe.ontouchend = function handleTouchEnd(e: TouchEvent) {
-      iframe.ontouchend = undefined
-      const selection = iframe.getSelection()
+    const activeWindow = iframe as unknown as Window
+    activeWindow.ontouchend = function handleTouchEnd(e: TouchEvent) {
+      activeWindow.ontouchend = null
+      const selection = activeWindow.getSelection()
       if (hasSelection(selection)) return
 
       const x1 = e.changedTouches[0]?.clientX ?? 0
@@ -486,7 +488,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     }
   })
 
-  useDisablePinchZooming(iframe)
+  useDisablePinchZooming(iframe as unknown as Window | undefined)
 
   const spreadContainerStyle = useMemo<CSSProperties>(() => {
     const style: CSSProperties = {

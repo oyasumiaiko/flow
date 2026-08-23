@@ -1,31 +1,8 @@
-import { IS_SERVER } from '@literal-ui/hooks'
-import { atom, AtomEffect, useRecoilState } from 'recoil'
+import { atom, useAtom } from 'jotai'
 
 import { RenditionSpread } from '@flow/epubjs/types/rendition'
 
-function localStorageEffect<T>(key: string, defaultValue: T): AtomEffect<T> {
-  return ({ setSelf, onSet }) => {
-    if (IS_SERVER) return
-
-    const savedValue = localStorage.getItem(key)
-    if (savedValue === null) {
-      localStorage.setItem(key, JSON.stringify(defaultValue))
-    } else {
-      setSelf(JSON.parse(savedValue))
-    }
-
-    onSet((newValue, _, isReset) => {
-      isReset
-        ? localStorage.removeItem(key)
-        : localStorage.setItem(key, JSON.stringify(newValue))
-    })
-  }
-}
-
-export const navbarState = atom<boolean>({
-  key: 'navbar',
-  default: false,
-})
+export const navbarState = atom<boolean>(false)
 
 export type ReaderMetaSlot =
   | 'none'
@@ -49,8 +26,12 @@ export const defaultReaderMetaSettings: Required<ReaderMetaSettings> = {
   readerFooterRight: 'progress',
 }
 
+export type ColorScheme = 'light' | 'dark' | 'system'
+
 export interface Settings extends TypographyConfiguration, ReaderMetaSettings {
   theme?: ThemeConfiguration
+  colorScheme?: ColorScheme
+  locale?: 'en-US' | 'zh-CN' | 'ja-JP'
   autoHideCursorInReading?: boolean
   enableTextSelectionMenu?: boolean
 }
@@ -75,14 +56,13 @@ interface ThemeConfiguration {
 
 export const defaultSettings: Settings = {
   ...defaultReaderMetaSettings,
+  colorScheme: 'system',
+  locale: 'en-US',
 }
 
-const settingsState = atom<Settings>({
-  key: 'settings',
-  default: defaultSettings,
-  effects: [localStorageEffect('settings', defaultSettings)],
-})
+const settingsState = atom<Settings>(defaultSettings)
 
+/** 全局偏好只在内存中供 UI 使用，权威值由 CloudSettingsGate 与 Sites D1 同步。 */
 export function useSettings() {
-  return useRecoilState(settingsState)
+  return useAtom(settingsState)
 }
