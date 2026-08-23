@@ -73,16 +73,20 @@ const background = {
 // external import in `_document.tsx` will break fast refresh,
 // so move it to `_document.tsx`
 function PreventFlash() {
-  const setColorScheme = () => {
-    const mql = window.matchMedia('(prefers-color-scheme: dark)')
-    // 用户偏好会在应用启动时从 Sites D1 加载；首屏只按系统颜色避免读取本地存储。
-    if (mql.matches) {
+  // 这里必须生成完全自包含的字符串。若把闭包函数直接序列化，生产压缩器可能
+  // 重命名其外部变量，而另一个内联脚本仍保留原变量名，最终造成首屏脚本报错。
+  const initializeColorScheme = `
+    (() => {
+      const mql = window.matchMedia('(prefers-color-scheme: dark)')
+      // 用户偏好会在应用启动时从 Sites D1 加载；首屏只按系统颜色避免读取本地存储。
+      if (!mql.matches) return
       document.documentElement.classList.toggle('dark', true)
-      document
-        .querySelector('#theme-color')
-        ?.setAttribute('content', background.dark)
-    }
-  }
+      document.querySelector('#theme-color')?.setAttribute(
+        'content',
+        ${JSON.stringify(background.dark)},
+      )
+    })()
+  `
 
   return (
     <>
@@ -95,12 +99,7 @@ function PreventFlash() {
         }
       `}</style>
       <script
-        dangerouslySetInnerHTML={{
-          __html: `const background=${JSON.stringify(background)}`,
-        }}
-      ></script>
-      <script
-        dangerouslySetInnerHTML={{ __html: `(${setColorScheme})()` }}
+        dangerouslySetInnerHTML={{ __html: initializeColorScheme }}
       ></script>
     </>
   )
