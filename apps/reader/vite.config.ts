@@ -40,7 +40,9 @@ export default defineConfig(async () => {
       vinext(),
       sites(),
       cloudflare({
-        viteEnvironment: { name: 'ssr' },
+        // Flow 使用 Pages Router，Worker 本身就是完整的服务端入口。Sites 的
+        // 打包契约固定读取 dist/server/index.js，因此环境名必须明确为 server。
+        viteEnvironment: { name: 'server' },
         config: localBindingConfig,
       }),
     ],
