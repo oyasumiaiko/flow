@@ -90,6 +90,7 @@ export default {
   'settings.install.description':
     '安装后可从桌面直接启动，并以全屏或独立窗口沉浸阅读。',
   'settings.install.action': '安装 Flow',
+  'reader_menu.open': '打开阅读菜单',
   'settings.install.installed': 'Flow 已作为应用运行。',
   'settings.install.browser_menu':
     '若安装按钮尚未出现，请刷新一次，然后从 Chrome 菜单选择“安装应用”。',
