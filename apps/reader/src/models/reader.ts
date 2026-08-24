@@ -7,7 +7,6 @@ import { proxy, ref, snapshot, subscribe, useSnapshot } from 'valtio'
 import type { Rendition, Location, Book } from '@flow/epubjs'
 import Navigation, { NavItem } from '@flow/epubjs/types/navigation'
 import { RenditionSpread } from '@flow/epubjs/types/rendition'
-import { StableViewManager } from '@flow/epubjs'
 import Section from '@flow/epubjs/types/section'
 
 import { AnnotationColor, AnnotationType } from '../annotation'
@@ -439,7 +438,10 @@ export class BookTab extends BaseTab {
       this.epub.renderTo(el, {
         width: '100%',
         height: '100%',
-        manager: readingMode === 'scrolled' ? StableViewManager : 'default',
+        // Scrolled reading deliberately renders one spine section at a time.
+        // EPUB storage boundaries therefore never become placeholders inside a
+        // single document, and very long books keep constant rendering cost.
+        manager: 'default',
         flow: readingMode === 'scrolled' ? 'scrolled' : 'paginated',
         spread: readingMode === 'scrolled' ? RenditionSpread.None : undefined,
         allowScriptedContent: true,
