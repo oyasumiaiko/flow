@@ -16,6 +16,8 @@ export default class Archive {
 
   getText(url: string): Promise<string>
 
+  getSize(url: string): number | undefined
+
   getBase64(url: string, mimeType?: string): Promise<string>
 
   createUrl(url: string, options: { base64: boolean }): Promise<string>
