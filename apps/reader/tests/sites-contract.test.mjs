@@ -54,7 +54,7 @@ test('legacy Dropbox, ZIP backup, and local preference stores are absent', async
   assert.doesNotMatch(combined, /application\/zip|\.zip['"]/)
 })
 
-test('mobile reading uses a stable windowed full-spine document flow', async () => {
+test('mobile reading scrolls one chapter at a time with explicit boundary turns', async () => {
   const [
     styles,
     page,
@@ -63,7 +63,7 @@ test('mobile reading uses a stable windowed full-spine document flow', async () 
     reader,
     readerView,
     layout,
-    stable,
+    readingNavigation,
     typography,
   ] = await Promise.all([
     readFile(new URL('src/pages/styles.css', root), 'utf8'),
@@ -73,10 +73,7 @@ test('mobile reading uses a stable windowed full-spine document flow', async () 
     readFile(new URL('src/models/reader.ts', root), 'utf8'),
     readFile(new URL('src/components/Reader.tsx', root), 'utf8'),
     readFile(new URL('src/components/Layout.tsx', root), 'utf8'),
-    readFile(
-      new URL('../../packages/epubjs/src/managers/stable/index.js', root),
-      'utf8',
-    ),
+    readFile(new URL('src/reading-navigation.ts', root), 'utf8'),
     readFile(
       new URL('src/components/viewlets/TypographyView.tsx', root),
       'utf8',
@@ -89,36 +86,22 @@ test('mobile reading uses a stable windowed full-spine document flow', async () 
   assert.doesNotMatch(home, /library-scroll/)
   assert.match(page, /scroll bg-background h-full/)
   assert.match(touchGuard, /event\.touches\.length < 2/)
-  assert.match(reader, /manager:[\s\S]*StableViewManager/)
+  assert.match(reader, /manager:\s*'default'/)
   assert.match(reader, /flow:[\s\S]*'scrolled'/)
   assert.doesNotMatch(reader, /'scrolled-continuous'/)
   assert.match(reader, /manager\?\.current\?\.\(\)/)
   assert.match(reader, /this\.section = ref\(currentSection\)/)
-  assert.match(stable, /collectSections/)
-  assert.match(stable, /buildSlots/)
-  assert.match(stable, /view\.element\.style\.height/)
-  assert.match(stable, /LOAD_BUFFER_SCREENS/)
-  assert.match(stable, /ESTIMATED_BYTES_PER_SCREEN/)
-  assert.match(stable, /stableEstimateWeight/)
-  assert.match(stable, /waitForViewLayout/)
-  assert.match(stable, /image\.addEventListener\('load'/)
-  assert.match(stable, /addScrollListeners\(\)/)
-  assert.match(stable, /requestFrame/)
-  assert.match(stable, /requestWindowUpdate/)
-  assert.match(stable, /KEEP_BUFFER_SCREENS/)
-  assert.match(stable, /MAX_LOAD_VIEWS/)
-  assert.match(stable, /MAX_KEEP_VIEWS/)
-  assert.match(stable, /releaseView/)
-  assert.match(stable, /view\.destroy\(\)/)
-  assert.match(stable, /view\.section\.unload\(\)/)
-  assert.match(stable, /this\.scrollTop \+= delta/)
-  assert.doesNotMatch(stable, /this\.views\.(prepend|remove)/)
-  assert.doesNotMatch(stable, /this\.(next|prev)\(/)
+  assert.match(readingNavigation, /chapterTurnFromTap/)
+  assert.match(readingNavigation, /chapterTurnFromBoundarySwipe/)
+  assert.match(readingNavigation, /chapterTurnFromBoundaryWheel/)
+  assert.match(readingNavigation, /getScrollBoundary/)
+  assert.match(readerView, /turnChapter\(turn\)/)
   assert.doesNotMatch(reader, /Promise\.all\(promises\)/)
   assert.match(reader, /archive\?\.getSize/)
   assert.match(reader, /ensureGlobalLocations/)
   assert.match(readerView, /useRenditionEvent\(rendition, 'touchend'/)
-  assert.match(readerView, /if \(!start \|\| isScrolled\) return/)
+  assert.match(readerView, /chapterTurnFromBoundarySwipe/)
+  assert.match(readerView, /chapterTurnFromTap/)
   assert.match(layout, /reader_menu/)
   assert.match(layout, /<PageActionBar env={Env\.Mobile}/)
   assert.match(layout, /<ViewActionBar env={Env\.Mobile}/)
