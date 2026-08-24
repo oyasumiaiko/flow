@@ -1,5 +1,9 @@
 export default {
   'home.title': 'Home',
+  'home.library': 'Library',
+  'home.books': 'books',
+  'home.menu': 'Library menu',
+  'home.settings': 'Settings',
   'home.share': 'Share',
   'home.download': 'Download',
   'home.download_sample_book': 'Download sample book',
@@ -8,6 +12,13 @@ export default {
   'home.select_all': 'Select all',
   'home.deselect_all': 'Deselect all',
   'home.import': 'Import',
+  'home.import_device': 'Import EPUB from device',
+  'home.import_link': 'Import from link',
+  'home.import_first_book': 'Import your first book',
+  'home.empty_title': 'Your library is empty',
+  'home.empty_description':
+    'Use the plus button to import an EPUB from your device or a link.',
+  'home.selected': 'selected',
   'home.delete': 'Delete',
   'home.cloud_load_failed': 'Could not load the Sites library',
   'home.retry': 'Retry',
@@ -54,6 +65,7 @@ export default {
   'theme.background_color': 'Background Color',
 
   'settings.title': 'Settings',
+  'settings.back': 'Go back',
   'settings.language': 'Language',
   'settings.color_scheme': 'Color Scheme',
   'settings.color_scheme.system': 'System',
