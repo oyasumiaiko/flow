@@ -24,7 +24,7 @@ export default function Document() {
 function PWA() {
   return (
     <>
-      <link rel="manifest" href="/manifest.json" />
+      <link rel="manifest" href="/manifest.json?v=3" />
       <meta id="theme-color" name="theme-color" content={background.light} />
       <meta name="mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-capable" content="yes" />

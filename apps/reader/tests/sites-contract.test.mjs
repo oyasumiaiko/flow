@@ -68,6 +68,8 @@ test('mobile library scrolling and continuous reading remain enabled', async () 
 
   assert.match(styles, /overflow-y:\s*auto/)
   assert.match(styles, /touch-action:\s*pan-y/)
+  assert.match(styles, /\.library-scroll\s*{\s*padding-bottom:\s*1rem/)
+  assert.doesNotMatch(styles, /padding-bottom:\s*calc\(4rem/)
   assert.match(page, /scroll h-full/)
   assert.match(touchGuard, /event\.touches\.length < 2/)
   assert.match(reader, /manager:\s*readingMode === 'scrolled'/)
@@ -76,18 +78,22 @@ test('mobile library scrolling and continuous reading remain enabled', async () 
 })
 
 test('the reader remains installable as a standalone mobile app', async () => {
-  const [manifestText, app, document, serviceWorker] = await Promise.all([
+  const [manifestText, app, document, pwa, serviceWorker] = await Promise.all([
     readFile(new URL('public/manifest.json', root), 'utf8'),
     readFile(new URL('src/pages/_app.tsx', root), 'utf8'),
     readFile(new URL('src/pages/_document.tsx', root), 'utf8'),
+    readFile(new URL('src/pwa.ts', root), 'utf8'),
     readFile(new URL('public/sw.js', root), 'utf8'),
   ])
   const manifest = JSON.parse(manifestText)
 
   assert.equal(manifest.display, 'standalone')
-  assert.equal(manifest.display_override, undefined)
+  assert.deepEqual(manifest.display_override, ['standalone'])
+  assert.equal(manifest.theme_color, '#24292e')
   assert.equal(manifest.scope, '/')
   assert.match(app, /initializePwa\(\)/)
+  assert.match(pwa, /register\('\/sw\.js\?v=3'/)
+  assert.match(document, /manifest\.json\?v=3/)
   assert.match(document, /apple-mobile-web-app-capable/)
   assert.doesNotMatch(serviceWorker, /'\/manifest\.json'/)
   assert.match(serviceWorker, /addEventListener\('fetch'/)
