@@ -38,6 +38,12 @@ import {
 import { BookTab, reader, useReaderSnapshot } from '../models'
 import { goBack, openTransientLayer } from '../navigation'
 import { isTouchScreen } from '../platform'
+import {
+  chapterTurnFromBoundarySwipe,
+  chapterTurnFromBoundaryWheel,
+  chapterTurnFromTap,
+  getScrollBoundary,
+} from '../reading-navigation'
 import { updateCustomStyle } from '../styles'
 
 import {
@@ -264,6 +270,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const renderRef = useRef<HTMLDivElement>(null)
   const cursorHideTimerRef = useRef<number | undefined>(undefined)
+  const lastChapterTurnRef = useRef(0)
   const prevSize = useRef({ width: 0, height: 0 })
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const [cursorHidden, setCursorHidden] = useState(false)
@@ -278,6 +285,16 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   const isScrolled = readingMode === 'scrolled'
 
   const { iframe, rendition, rendered, container } = useSnapshot(tab)
+
+  const turnChapter = useCallback(
+    (direction: -1 | 1) => {
+      const now = Date.now()
+      if (now - lastChapterTurnRef.current < 700) return
+      lastChapterTurnRef.current = now
+      direction < 0 ? tab.prev() : tab.next()
+    },
+    [tab],
+  )
 
   useEffect(() => {
     const el = viewportRef.current
@@ -456,7 +473,15 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       }
 
       if (isScrolled) {
-        if (mobile) toggleNavbar()
+        const activeWindow = e.target?.ownerDocument?.defaultView
+        const frame = activeWindow?.frameElement as HTMLElement | null
+        const frameTop = frame?.getBoundingClientRect().top ?? 0
+        const viewportTop = container.getBoundingClientRect().top
+        const viewportY = frameTop + e.clientY - viewportTop
+        const turn = chapterTurnFromTap(viewportY, container.clientHeight)
+
+        if (turn) turnChapter(turn)
+        else if (mobile) toggleNavbar()
         return
       }
 
@@ -487,7 +512,18 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   )
 
   useRenditionEvent(rendition, 'wheel', (e) => {
-    if (isScrolled) return
+    if (isScrolled) {
+      if (!container) return
+      const turn = chapterTurnFromBoundaryWheel(
+        e.deltaY,
+        getScrollBoundary(container),
+      )
+      if (turn) {
+        if (e.cancelable) e.preventDefault()
+        turnChapter(turn)
+      }
+      return
+    }
     handleWheelTurnPage(e.deltaY)
   })
 
@@ -499,6 +535,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
         y: number
         time: number
         activeWindow?: Window
+        boundary?: ReturnType<typeof getScrollBoundary>
       }
     | undefined
   >(undefined)
@@ -509,13 +546,14 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       y: e.targetTouches[0]?.clientY ?? 0,
       time: Date.now(),
       activeWindow: contents?.window,
+      boundary: container ? getScrollBoundary(container) : undefined,
     }
   })
 
   useRenditionEvent(rendition, 'touchend', (e) => {
     const start = touchStartRef.current
     touchStartRef.current = undefined
-    if (!start || isScrolled) return
+    if (!start) return
 
     const selection = start.activeWindow?.getSelection()
     if (hasSelection(selection)) return
@@ -527,6 +565,17 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     const deltaT = Date.now() - start.time
     const absX = Math.abs(deltaX)
     const absY = Math.abs(deltaY)
+
+    if (isScrolled) {
+      if (!start.boundary) return
+      const turn = chapterTurnFromBoundarySwipe({
+        deltaX,
+        deltaY,
+        boundary: start.boundary,
+      })
+      if (turn) turnChapter(turn)
+      return
+    }
 
     if (absX < 10) return
 
