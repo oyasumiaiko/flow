@@ -369,17 +369,7 @@ const Reader: React.FC<ReaderProps> = ({ className, ...props }) => {
   useSplitViewItem(Reader)
   const [bg] = useBackground()
 
-  const r = useReaderSnapshot()
-  const readMode = r.focusedTab?.isBook
-
   return (
-    <div
-      className={clsx(
-        'Reader flex-1 overflow-hidden',
-        readMode || 'mb-12 sm:mb-0',
-        bg,
-      )}
-      {...props}
-    />
+    <div className={clsx('Reader flex-1 overflow-hidden', bg)} {...props} />
   )
 }
