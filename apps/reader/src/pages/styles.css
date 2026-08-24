@@ -86,6 +86,11 @@ input[type='color']::-webkit-color-swatch {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.LibraryHeader,
+.SettingsHeader {
+  padding-top: env(safe-area-inset-top);
+}
+
 .scroll-h {
   @apply overflow-x-auto;
 }
