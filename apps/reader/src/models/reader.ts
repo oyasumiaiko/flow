@@ -7,6 +7,7 @@ import { proxy, ref, snapshot, subscribe, useSnapshot } from 'valtio'
 import type { Rendition, Location, Book } from '@flow/epubjs'
 import Navigation, { NavItem } from '@flow/epubjs/types/navigation'
 import { RenditionSpread } from '@flow/epubjs/types/rendition'
+import { StableViewManager } from '@flow/epubjs'
 import Section from '@flow/epubjs/types/section'
 
 import { AnnotationColor, AnnotationType } from '../annotation'
@@ -384,8 +385,8 @@ export class BookTab extends BaseTab {
       this.epub.renderTo(el, {
         width: '100%',
         height: '100%',
-        manager: readingMode === 'scrolled' ? 'continuous' : 'default',
-        flow: readingMode === 'scrolled' ? 'scrolled-continuous' : 'paginated',
+        manager: readingMode === 'scrolled' ? StableViewManager : 'default',
+        flow: readingMode === 'scrolled' ? 'scrolled' : 'paginated',
         spread: readingMode === 'scrolled' ? RenditionSpread.None : undefined,
         allowScriptedContent: true,
       }),
