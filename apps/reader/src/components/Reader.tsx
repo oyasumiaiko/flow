@@ -71,6 +71,30 @@ function handleKeyDown(tab?: BookTab) {
   }
 }
 
+function useRenditionEvent(
+  rendition:
+    | {
+        on: (event: string, listener: (...args: any[]) => void) => unknown
+        off: (event: string, listener: (...args: any[]) => void) => unknown
+      }
+    | undefined,
+  event: string,
+  listener: (...args: any[]) => void,
+) {
+  const listenerRef = useRef(listener)
+  listenerRef.current = listener
+
+  useEffect(() => {
+    if (!rendition) return
+
+    const handleEvent = (...args: any[]) => listenerRef.current(...args)
+    rendition.on(event, handleEvent)
+    return () => {
+      rendition.off(event, handleEvent)
+    }
+  }, [event, rendition])
+}
+
 function parseViewportAspectRatio(viewport?: string) {
   if (!viewport) return
 
@@ -391,10 +415,10 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     setDragEvent(e)
   })
 
-  useEventListener(iframe, 'mousedown', onMouseDown)
-  useEventListener(iframe, 'mousemove', handleReadingAreaMouseMove)
+  useRenditionEvent(rendition, 'mousedown', onMouseDown)
+  useRenditionEvent(rendition, 'mousemove', handleReadingAreaMouseMove)
 
-  useEventListener(iframe, 'click', (e) => {
+  useRenditionEvent(rendition, 'click', (e) => {
     // https://developer.chrome.com/blog/tap-to-search
     e.preventDefault()
 
@@ -417,6 +441,11 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     if (isTouchScreen && container) {
       if (getClickedAnnotation()) {
         setClickedAnnotation(false)
+        return
+      }
+
+      if (isScrolled) {
+        if (mobile) setNavbar((visible) => !visible)
         return
       }
 
@@ -446,56 +475,60 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     [tab],
   )
 
-  useEventListener(iframe, 'wheel', (e) => {
+  useRenditionEvent(rendition, 'wheel', (e) => {
     if (isScrolled) return
     handleWheelTurnPage(e.deltaY)
   })
 
-  useEventListener(iframe, 'keydown', handleKeyDown(tab))
+  useRenditionEvent(rendition, 'keydown', handleKeyDown(tab))
 
-  useEventListener(iframe, 'touchstart', (e) => {
-    const x0 = e.targetTouches[0]?.clientX ?? 0
-    const y0 = e.targetTouches[0]?.clientY ?? 0
-    const t0 = Date.now()
-
-    if (!iframe) return
-
-    // When selecting text with long tap, `touchend` is not fired,
-    // so instead of use `addEventlistener`, we should use `on*`
-    // to remove the previous listener.
-    const activeWindow = iframe as unknown as Window
-    activeWindow.ontouchend = function handleTouchEnd(e: TouchEvent) {
-      activeWindow.ontouchend = null
-      const selection = activeWindow.getSelection()
-      if (hasSelection(selection)) return
-
-      const x1 = e.changedTouches[0]?.clientX ?? 0
-      const y1 = e.changedTouches[0]?.clientY ?? 0
-      const t1 = Date.now()
-
-      const deltaX = x1 - x0
-      const deltaY = y1 - y0
-      const deltaT = t1 - t0
-
-      const absX = Math.abs(deltaX)
-      const absY = Math.abs(deltaY)
-
-      if (absX < 10) return
-
-      if (absY / absX > 2) {
-        if (deltaT > 100 || absX < 30) {
-          return
-        }
+  const touchStartRef = useRef<
+    | {
+        x: number
+        y: number
+        time: number
+        activeWindow?: Window
       }
+    | undefined
+  >(undefined)
 
-      if (deltaX > 0) {
-        tab.prev()
-      }
-
-      if (deltaX < 0) {
-        tab.next()
-      }
+  useRenditionEvent(rendition, 'touchstart', (e, contents) => {
+    touchStartRef.current = {
+      x: e.targetTouches[0]?.clientX ?? 0,
+      y: e.targetTouches[0]?.clientY ?? 0,
+      time: Date.now(),
+      activeWindow: contents?.window,
     }
+  })
+
+  useRenditionEvent(rendition, 'touchend', (e) => {
+    const start = touchStartRef.current
+    touchStartRef.current = undefined
+    if (!start || isScrolled) return
+
+    const selection = start.activeWindow?.getSelection()
+    if (hasSelection(selection)) return
+
+    const x1 = e.changedTouches[0]?.clientX ?? 0
+    const y1 = e.changedTouches[0]?.clientY ?? 0
+    const deltaX = x1 - start.x
+    const deltaY = y1 - start.y
+    const deltaT = Date.now() - start.time
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+
+    if (absX < 10) return
+
+    if (absY / absX > 2 && (deltaT > 100 || absX < 30)) {
+      return
+    }
+
+    if (deltaX > 0) tab.prev()
+    if (deltaX < 0) tab.next()
+  })
+
+  useRenditionEvent(rendition, 'touchmove', (e) => {
+    if (e.touches.length > 1 && e.cancelable) e.preventDefault()
   })
 
   useDisablePinchZooming(iframe as unknown as Window | undefined)
