@@ -90,7 +90,7 @@ test('the reader remains installable as a standalone mobile app', async () => {
   const manifest = JSON.parse(manifestText)
 
   assert.equal(manifest.display, 'standalone')
-  assert.deepEqual(manifest.display_override, ['fullscreen', 'standalone'])
+  assert.deepEqual(manifest.display_override, ['standalone'])
   assert.equal(manifest.theme_color, '#fff')
   assert.equal(manifest.scope, '/')
   assert.match(app, /initializePwa\(\)/)
