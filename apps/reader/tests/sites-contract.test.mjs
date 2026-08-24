@@ -95,6 +95,7 @@ test('the reader remains installable as a standalone mobile app', async () => {
   assert.match(pwa, /register\('\/sw\.js\?v=3'/)
   assert.match(document, /manifest\.json\?v=3/)
   assert.match(document, /apple-mobile-web-app-capable/)
+  assert.doesNotMatch(document, /name="mobile-web-app-capable"/)
   assert.doesNotMatch(serviceWorker, /'\/manifest\.json'/)
   assert.match(serviceWorker, /addEventListener\('fetch'/)
 })
