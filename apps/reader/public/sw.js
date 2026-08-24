@@ -1,6 +1,5 @@
-const CACHE_NAME = 'flow-static-v1'
+const CACHE_NAME = 'flow-static-v2'
 const STATIC_ASSETS = [
-  '/manifest.json',
   '/icons/192.png',
   '/icons/512.png',
   '/icons/maskable-192.png',

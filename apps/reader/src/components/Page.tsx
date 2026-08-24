@@ -11,7 +11,7 @@ export const Page: React.FC<PageProps> = ({
   ...props
 }) => {
   return (
-    <div className={clsx('p-4', className)} {...props}>
+    <div className={clsx('scroll h-full p-4', className)} {...props}>
       <h1
         className={clsx(
           'typescale-title-large text-on-surface-variant mb-4',

@@ -4,8 +4,10 @@ import { useEffect } from 'react'
 export function useDisablePinchZooming(win?: Window) {
   useEffect(() => {
     const _win = win ?? window
-    // Block pinch-zooming on iOS outside of the content area
+    // A document-level preventDefault for every touchmove also disables native
+    // one-finger scrolling on Android. Only cancel an actual multi-touch pinch.
     const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length < 2) return
       event.preventDefault()
     }
 

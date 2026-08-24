@@ -55,8 +55,10 @@ test('legacy Dropbox, ZIP backup, and local preference stores are absent', async
 })
 
 test('mobile library scrolling and continuous reading remain enabled', async () => {
-  const [styles, reader, typography] = await Promise.all([
+  const [styles, page, touchGuard, reader, typography] = await Promise.all([
     readFile(new URL('src/pages/styles.css', root), 'utf8'),
+    readFile(new URL('src/components/Page.tsx', root), 'utf8'),
+    readFile(new URL('src/hooks/useDisablePinchZooming.ts', root), 'utf8'),
     readFile(new URL('src/models/reader.ts', root), 'utf8'),
     readFile(
       new URL('src/components/viewlets/TypographyView.tsx', root),
@@ -66,6 +68,8 @@ test('mobile library scrolling and continuous reading remain enabled', async () 
 
   assert.match(styles, /overflow-y:\s*auto/)
   assert.match(styles, /touch-action:\s*pan-y/)
+  assert.match(page, /scroll h-full/)
+  assert.match(touchGuard, /event\.touches\.length < 2/)
   assert.match(reader, /manager:\s*readingMode === 'scrolled'/)
   assert.match(reader, /flow:[\s\S]*'scrolled-continuous'/)
   assert.match(typography, /reading_mode\.scrolled/)
@@ -81,9 +85,10 @@ test('the reader remains installable as a standalone mobile app', async () => {
   const manifest = JSON.parse(manifestText)
 
   assert.equal(manifest.display, 'standalone')
-  assert.deepEqual(manifest.display_override, ['fullscreen', 'standalone'])
+  assert.equal(manifest.display_override, undefined)
   assert.equal(manifest.scope, '/')
   assert.match(app, /initializePwa\(\)/)
   assert.match(document, /apple-mobile-web-app-capable/)
+  assert.doesNotMatch(serviceWorker, /'\/manifest\.json'/)
   assert.match(serviceWorker, /addEventListener\('fetch'/)
 })

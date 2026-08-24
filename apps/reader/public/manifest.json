@@ -34,7 +34,6 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["fullscreen", "standalone"],
   "orientation": "any",
   "categories": ["books", "productivity"],
   "prefer_related_applications": false,
