@@ -240,6 +240,11 @@ async function flushBookUpdate(bookId: string) {
     pending.flushing = false
     if (Object.keys(pending.changes).length === 0) {
       pendingBookUpdates.delete(bookId)
+    } else {
+      // 更新可能在上一次请求进行时到达；重新安排一次串行写入，避免计时器已经
+      // 触发但因 flushing=true 返回后，最新阅读进度永久滞留在内存里。
+      if (pending.timer !== undefined) window.clearTimeout(pending.timer)
+      pending.timer = window.setTimeout(() => void flushBookUpdate(bookId), 350)
     }
   }
 }

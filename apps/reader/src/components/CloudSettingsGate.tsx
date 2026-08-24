@@ -3,6 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { defaultSettings, Settings, useSettings } from '../state'
 import {
+  createLatestValueWriter,
+  LatestValueWriter,
+} from '../settings-write-queue'
+import {
   CloudRequestError,
   fetchCloudSettings,
   markCloudIdle,
@@ -26,9 +30,36 @@ export function CloudSettingsGate({ children }: CloudSettingsGateProps) {
   const router = useRouter()
   const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<string>()
-  const [retryGeneration, setRetryGeneration] = useState(0)
   const versionRef = useRef(0)
   const lastSavedRef = useRef('')
+  const writerRef = useRef<LatestValueWriter<{
+    settings: Settings
+    serialized: string
+  }> | null>(null)
+
+  if (!writerRef.current) {
+    writerRef.current = createLatestValueWriter(
+      async ({ settings: nextSettings, serialized }) => {
+        let saved
+        try {
+          saved = await saveCloudSettings(nextSettings, versionRef.current)
+        } catch (error) {
+          if (!(error instanceof CloudRequestError) || error.status !== 409) {
+            throw error
+          }
+          const current = await fetchCloudSettings<Settings>()
+          saved = await saveCloudSettings(nextSettings, current.version)
+        }
+        versionRef.current = saved.version
+        lastSavedRef.current = serialized
+      },
+      {
+        onStart: markCloudSyncing,
+        onIdle: markCloudIdle,
+        onError: reportCloudError,
+      },
+    )
+  }
 
   const load = useCallback(async () => {
     setLoadError(undefined)
@@ -65,7 +96,7 @@ export function CloudSettingsGate({ children }: CloudSettingsGateProps) {
   }, [load])
 
   useEffect(() => {
-    const retry = () => setRetryGeneration((value) => value + 1)
+    const retry = () => writerRef.current?.retry()
     window.addEventListener('flow:retry-settings', retry)
     return () => window.removeEventListener('flow:retry-settings', retry)
   }, [])
@@ -75,29 +106,12 @@ export function CloudSettingsGate({ children }: CloudSettingsGateProps) {
     const serialized = JSON.stringify(settings)
     if (serialized === lastSavedRef.current) return
 
-    const timer = window.setTimeout(async () => {
-      markCloudSyncing()
-      try {
-        let saved
-        try {
-          saved = await saveCloudSettings(settings, versionRef.current)
-        } catch (error) {
-          if (!(error instanceof CloudRequestError) || error.status !== 409) {
-            throw error
-          }
-          const current = await fetchCloudSettings<Settings>()
-          saved = await saveCloudSettings(settings, current.version)
-        }
-        versionRef.current = saved.version
-        lastSavedRef.current = serialized
-        markCloudIdle()
-      } catch (error) {
-        reportCloudError(error)
-      }
-    }, 450)
+    const timer = window.setTimeout(() => {
+      writerRef.current?.enqueue({ settings, serialized })
+    }, 800)
 
     return () => window.clearTimeout(timer)
-  }, [ready, retryGeneration, settings])
+  }, [ready, settings])
 
   if (loadError) {
     return (
