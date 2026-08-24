@@ -98,6 +98,13 @@ test('mobile reading uses a stable windowed full-spine document flow', async () 
   assert.match(stable, /buildSlots/)
   assert.match(stable, /view\.element\.style\.height/)
   assert.match(stable, /LOAD_BUFFER_SCREENS/)
+  assert.match(stable, /ESTIMATED_BYTES_PER_SCREEN/)
+  assert.match(stable, /stableEstimateWeight/)
+  assert.match(stable, /waitForViewLayout/)
+  assert.match(stable, /image\.addEventListener\('load'/)
+  assert.match(stable, /addScrollListeners\(\)/)
+  assert.match(stable, /requestFrame/)
+  assert.match(stable, /requestWindowUpdate/)
   assert.match(stable, /KEEP_BUFFER_SCREENS/)
   assert.match(stable, /MAX_LOAD_VIEWS/)
   assert.match(stable, /MAX_KEEP_VIEWS/)
@@ -107,6 +114,9 @@ test('mobile reading uses a stable windowed full-spine document flow', async () 
   assert.match(stable, /this\.scrollTop \+= delta/)
   assert.doesNotMatch(stable, /this\.views\.(prepend|remove)/)
   assert.doesNotMatch(stable, /this\.(next|prev)\(/)
+  assert.doesNotMatch(reader, /Promise\.all\(promises\)/)
+  assert.match(reader, /archive\?\.getSize/)
+  assert.match(reader, /ensureGlobalLocations/)
   assert.match(readerView, /useRenditionEvent\(rendition, 'touchend'/)
   assert.match(readerView, /if \(!start \|\| isScrolled\) return/)
   assert.match(layout, /reader_menu/)
@@ -138,6 +148,7 @@ test('mobile library chrome and Android back use explicit app navigation', async
   assert.match(navigation, /saveReaderEntry\('replace'\)/)
   assert.match(layout, /navigateReader\(\(\) =>/)
   assert.match(layout, /if \(!readMode\) return null/)
+  assert.doesNotMatch(layout, /mb-12 sm:mb-0/)
   assert.match(settings, /goBack\(\(\) => reader\.clear\(\)\)/)
 })
 
@@ -166,7 +177,7 @@ test('the reader remains installable as a standalone mobile app', async () => {
 })
 
 test('immersive mode fills the viewport without drawing a duplicate status bar', async () => {
-  const [fullscreen, index, layout, reader, settings, state] =
+  const [fullscreen, index, layout, reader, settings, state, background] =
     await Promise.all([
       readFile(new URL('src/fullscreen.ts', root), 'utf8'),
       readFile(new URL('src/pages/index.tsx', root), 'utf8'),
@@ -174,6 +185,7 @@ test('immersive mode fills the viewport without drawing a duplicate status bar',
       readFile(new URL('src/components/Reader.tsx', root), 'utf8'),
       readFile(new URL('src/components/pages/settings.tsx', root), 'utf8'),
       readFile(new URL('src/state.ts', root), 'utf8'),
+      readFile(new URL('src/hooks/theme/useBackground.ts', root), 'utf8'),
     ])
 
   assert.match(fullscreen, /requestFullscreen/)
@@ -186,8 +198,12 @@ test('immersive mode fills the viewport without drawing a duplicate status bar',
   assert.match(reader, /getBattery/)
   assert.match(state, /\| 'time'/)
   assert.match(state, /\| 'battery'/)
+  assert.match(state, /\| 'globalPage'/)
   assert.match(settings, /enterImmersiveMode/)
   assert.match(settings, /exitImmersiveMode/)
   assert.match(settings, /'time'/)
   assert.match(settings, /'battery'/)
+  assert.match(settings, /'globalPage'/)
+  assert.match(background, /rawTheme\.schemes\.dark\.background/)
+  assert.match(background, /#theme-color/)
 })
