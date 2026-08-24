@@ -29,7 +29,7 @@ export function initializePwa() {
 
   if ('serviceWorker' in navigator && window.isSecureContext) {
     navigator.serviceWorker
-      .register('/sw.js?v=3', { scope: '/' })
+      .register('/sw.js', { scope: '/' })
       .catch((error) => {
         console.error('[Flow PWA] Service worker registration failed', error)
       })

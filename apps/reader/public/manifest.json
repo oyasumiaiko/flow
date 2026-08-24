@@ -29,12 +29,12 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#24292e",
+  "theme_color": "#fff",
   "background_color": "#fff",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone"],
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "any",
   "categories": ["books", "productivity"],
   "prefer_related_applications": false,
