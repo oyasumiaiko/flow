@@ -58,6 +58,15 @@ export default {
   'settings.color_scheme.system': 'システム',
   'settings.color_scheme.light': 'ライト',
   'settings.color_scheme.dark': 'ダーク',
+  'settings.status_bar.title': 'ステータスバーモード',
+  'settings.status_bar.description':
+    'システムモードは Android のステータスバーを表示します。没入モードではシステムバーを隠し、Flow が時刻とバッテリー残量を表示します。',
+  'settings.status_bar.system': 'システムステータスバー',
+  'settings.status_bar.immersive': 'Web 没入ステータスバー',
+  'settings.status_bar.unsupported':
+    'このブラウザーは Web フルスクリーンに対応していません。',
+  'settings.status_bar.manifest_fullscreen':
+    '現在のインストールは古いフルスクリーン設定を使用しています。キャッシュ更新後に再インストールするとシステムステータスバーへ切り替えられます。',
   'settings.reader_meta.title': 'ヘッダー・フッター',
   'settings.reader_meta.header_left': '左上',
   'settings.reader_meta.header_right': '右上',

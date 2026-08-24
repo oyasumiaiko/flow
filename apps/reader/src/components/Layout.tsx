@@ -39,6 +39,7 @@ import { ThemeView } from './viewlets/ThemeView'
 import { TimelineView } from './viewlets/TimelineView'
 import { TocView } from './viewlets/TocView'
 import { TypographyView } from './viewlets/TypographyView'
+import { WebStatusBar } from './WebStatusBar'
 
 export const Layout: React.FC<React.PropsWithChildren> = ({ children }) => {
   useColorScheme()
@@ -54,13 +55,16 @@ export const Layout: React.FC<React.PropsWithChildren> = ({ children }) => {
   }, [mobile, setAction])
 
   return (
-    <div id="layout" className="select-none">
-      <SplitView>
-        {mobile === false && <ActivityBar />}
-        {mobile === true && <NavigationBar />}
-        {ready && <SideBar />}
-        {ready && <Reader>{children}</Reader>}
-      </SplitView>
+    <div id="layout" className="flex select-none flex-col">
+      <WebStatusBar />
+      <div className="min-h-0 flex-1">
+        <SplitView>
+          {mobile === false && <ActivityBar />}
+          {mobile === true && <NavigationBar />}
+          {ready && <SideBar />}
+          {ready && <Reader>{children}</Reader>}
+        </SplitView>
+      </div>
       <CloudSyncError />
     </div>
   )

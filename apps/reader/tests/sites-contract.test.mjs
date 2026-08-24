@@ -98,6 +98,25 @@ test('the reader remains installable as a standalone mobile app', async () => {
   assert.match(document, /href="\/manifest\.json"/)
   assert.match(document, /name="mobile-web-app-capable" content="yes"/)
   assert.match(document, /apple-mobile-web-app-capable/)
+  assert.match(serviceWorker, /flow-static-standalone/)
   assert.match(serviceWorker, /'\/manifest\.json'/)
   assert.match(serviceWorker, /addEventListener\('fetch'/)
+})
+
+test('mobile status bar mode can switch at runtime', async () => {
+  const [fullscreen, statusBar, layout, settings] = await Promise.all([
+    readFile(new URL('src/fullscreen.ts', root), 'utf8'),
+    readFile(new URL('src/components/WebStatusBar.tsx', root), 'utf8'),
+    readFile(new URL('src/components/Layout.tsx', root), 'utf8'),
+    readFile(new URL('src/components/pages/settings.tsx', root), 'utf8'),
+  ])
+
+  assert.match(fullscreen, /requestFullscreen/)
+  assert.match(fullscreen, /exitFullscreen/)
+  assert.match(fullscreen, /display-mode: fullscreen/)
+  assert.match(statusBar, /getBattery/)
+  assert.match(statusBar, /WebStatusBar/)
+  assert.match(layout, /<WebStatusBar \/>/)
+  assert.match(settings, /enterImmersiveMode/)
+  assert.match(settings, /exitImmersiveMode/)
 })

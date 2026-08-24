@@ -58,6 +58,14 @@ export default {
   'settings.color_scheme.system': '系统',
   'settings.color_scheme.light': '浅色',
   'settings.color_scheme.dark': '深色',
+  'settings.status_bar.title': '状态栏模式',
+  'settings.status_bar.description':
+    '系统模式显示 Android 状态栏；沉浸模式隐藏系统栏，并由 Flow 显示时间和电量。',
+  'settings.status_bar.system': '系统状态栏',
+  'settings.status_bar.immersive': '网页沉浸状态栏',
+  'settings.status_bar.unsupported': '当前浏览器不支持网页全屏。',
+  'settings.status_bar.manifest_fullscreen':
+    '当前安装仍使用旧的全屏清单。让页面完成一次缓存更新后重新安装，即可切换到系统状态栏。',
   'settings.reader_meta.title': '页眉页脚',
   'settings.reader_meta.header_left': '左上',
   'settings.reader_meta.header_right': '右上',

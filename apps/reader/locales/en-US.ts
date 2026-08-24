@@ -59,6 +59,15 @@ export default {
   'settings.color_scheme.system': 'System',
   'settings.color_scheme.light': 'Light',
   'settings.color_scheme.dark': 'Dark',
+  'settings.status_bar.title': 'Status Bar Mode',
+  'settings.status_bar.description':
+    'System mode uses the Android status bar. Immersive mode hides it and lets Flow show the time and battery level.',
+  'settings.status_bar.system': 'System status bar',
+  'settings.status_bar.immersive': 'Web immersive bar',
+  'settings.status_bar.unsupported':
+    'This browser does not support web fullscreen.',
+  'settings.status_bar.manifest_fullscreen':
+    'This installation still uses the old fullscreen manifest. Reinstall after the page finishes refreshing its cache to enable the system status bar.',
   'settings.reader_meta.title': 'Header & Footer',
   'settings.reader_meta.header_left': 'Top Left',
   'settings.reader_meta.header_right': 'Top Right',

@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router'
-import { useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 
 import { db } from '@flow/reader/db'
 import {
@@ -13,6 +13,14 @@ import {
   promptPwaInstall,
   subscribePwaInstall,
 } from '@flow/reader/pwa'
+import {
+  enterImmersiveMode,
+  exitImmersiveMode,
+  getImmersiveModeServerSnapshot,
+  getImmersiveModeSnapshot,
+  isRuntimeFullscreenSupported,
+  subscribeImmersiveMode,
+} from '@flow/reader/fullscreen'
 import {
   defaultReaderMetaSettings,
   ReaderMetaSlot,
@@ -60,6 +68,7 @@ export const Settings: React.FC = () => {
             <option value="dark">{t('color_scheme.dark')}</option>
           </Select>
         </Item>
+        <StatusBarMode />
         <ReaderMetaConfig settings={settings} setSettings={setSettings} />
         <Item title={t('text_selection_menu')}>
           <Checkbox
@@ -88,6 +97,52 @@ export const Settings: React.FC = () => {
         </Item>
       </div>
     </Page>
+  )
+}
+
+const StatusBarMode: React.FC = () => {
+  const t = useTranslation('settings.status_bar')
+  const immersive = useSyncExternalStore(
+    subscribeImmersiveMode,
+    getImmersiveModeSnapshot,
+    getImmersiveModeServerSnapshot,
+  )
+  const [message, setMessage] = useState<string>()
+
+  const useSystemBar = async () => {
+    setMessage(undefined)
+    if (!(await exitImmersiveMode())) setMessage(t('manifest_fullscreen'))
+  }
+
+  const useWebBar = async () => {
+    setMessage(undefined)
+    try {
+      if (!(await enterImmersiveMode())) setMessage(t('unsupported'))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t('unsupported'))
+    }
+  }
+
+  return (
+    <Item title={t('title')}>
+      <p className="text-on-surface-variant">{t('description')}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button
+          variant={immersive ? 'secondary' : 'primary'}
+          onClick={() => void useSystemBar()}
+        >
+          {t('system')}
+        </Button>
+        <Button
+          variant={immersive ? 'primary' : 'secondary'}
+          disabled={!isRuntimeFullscreenSupported() && !immersive}
+          onClick={() => void useWebBar()}
+        >
+          {t('immersive')}
+        </Button>
+      </div>
+      {message && <p className="text-error mt-2">{message}</p>}
+    </Item>
   )
 }
 
