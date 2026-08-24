@@ -91,6 +91,7 @@ export default {
   'settings.install.description':
     'ホーム画面から起動し、フルスクリーンまたは独立ウィンドウで読書できます。',
   'settings.install.action': 'Flow をインストール',
+  'reader_menu.open': '読書メニューを開く',
   'settings.install.installed':
     'Flow はインストール済みアプリとして実行中です。',
   'settings.install.browser_menu':
