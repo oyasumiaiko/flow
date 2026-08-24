@@ -297,13 +297,33 @@ class Resources {
    * @return {string}         content with urls substituted
    */
   substitute(content, url) {
-    var relUrls
-    if (url) {
-      relUrls = this.relativeTo(url)
-    } else {
-      relUrls = this.urls
-    }
-    return substitute(content, relUrls, this.replacementUrls)
+    var candidates = []
+    var replacements = []
+
+    this.urls.forEach((href, index) => {
+      var replacement = this.replacementUrls[index]
+      if (!href || !replacement) return
+
+      var resolved = this.settings.resolver(href)
+      var relative = url ? new Path(url).relative(resolved) : href
+      var rootRelative = href.charAt(0) === '/' ? href : '/' + href
+
+      // EPUB 生成器并不总是遵守同一种路径写法：同一清单资源可能在正文中以
+      // 章节相对路径、包根路径或 ZIP 根路径出现。优先替换更长的形式，避免
+      // `/Images/a.jpg` 被裸 `Images/a.jpg` 命中后遗留一个前导斜杠。
+      var variants = [resolved, rootRelative, relative, href]
+        .filter((candidate, i, values) => {
+          return candidate && values.indexOf(candidate) === i
+        })
+        .sort((a, b) => b.length - a.length)
+
+      variants.forEach((candidate) => {
+        candidates.push(candidate)
+        replacements.push(replacement)
+      })
+    })
+
+    return substitute(content, candidates, replacements)
   }
 
   destroy() {
