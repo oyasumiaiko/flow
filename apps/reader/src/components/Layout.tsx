@@ -2,7 +2,6 @@ import { Overlay } from '@literal-ui/core'
 import clsx from 'clsx'
 import { useAtom } from 'jotai'
 import { ComponentProps, useEffect, useState } from 'react'
-import { useMemo } from 'react'
 import { IconType } from 'react-icons'
 import {
   MdFormatUnderlined,
@@ -27,6 +26,7 @@ import {
   useTranslation,
 } from '../hooks'
 import { reader, useReaderSnapshot } from '../models'
+import { goBack, navigateReader, openTransientLayer } from '../navigation'
 import { navbarState } from '../state'
 import { activeClass } from '../styles'
 import { retryPendingCloudUpdates } from '../sync'
@@ -177,7 +177,16 @@ function ViewActionBar({ className, env }: EnvActionBarProps) {
               title={t(`${title}.title`)}
               Icon={Icon}
               active={active}
-              onClick={() => setAction(active ? undefined : name)}
+              onClick={() => {
+                if (active) {
+                  goBack(() => setAction(undefined))
+                } else {
+                  openTransientLayer(
+                    () => setAction(name),
+                    () => setAction(undefined),
+                  )
+                }
+              }}
               key={name}
             />
           )
@@ -188,7 +197,6 @@ function ViewActionBar({ className, env }: EnvActionBarProps) {
 
 function PageActionBar({ className, env }: EnvActionBarProps) {
   const mobile = useMobile()
-  const [action, setAction] = useState('Home')
   const t = useTranslation()
   const r = useReaderSnapshot()
   const readMode = r.focusedTab?.isBook
@@ -198,24 +206,21 @@ function PageActionBar({ className, env }: EnvActionBarProps) {
     disabled?: boolean
   }
 
-  const pageActions: IPageAction[] = useMemo(
-    () => [
-      {
-        name: 'home',
-        title: 'home',
-        Icon: RiHome6Line,
-        env: Env.Mobile,
-      },
-      {
-        name: 'settings',
-        title: 'settings',
-        Icon: RiSettings5Line,
-        Component: Settings,
-        env: Env.Desktop | Env.Mobile,
-      },
-    ],
-    [],
-  )
+  const pageActions: IPageAction[] = [
+    {
+      name: 'home',
+      title: 'home',
+      Icon: RiHome6Line,
+      env: Env.Mobile,
+    },
+    {
+      name: 'settings',
+      title: 'settings',
+      Icon: RiSettings5Line,
+      Component: Settings,
+      env: Env.Desktop | Env.Mobile,
+    },
+  ]
 
   return (
     <ActionBar className={className}>
@@ -225,11 +230,12 @@ function PageActionBar({ className, env }: EnvActionBarProps) {
           <Action
             title={t(`${title}.title`)}
             Icon={Icon}
-            active={mobile && !readMode ? action === name : undefined}
+            active={mobile && !readMode ? name === 'home' : undefined}
             disabled={disabled}
             onClick={() => {
-              Component ? reader.addTab(Component) : reader.clear()
-              setAction(name)
+              navigateReader(() => {
+                Component ? reader.addTab(Component) : reader.clear()
+              })
             }}
             key={i}
           />
@@ -244,21 +250,25 @@ function NavigationBar() {
   const [visible, setVisible] = useAtom(navbarState)
   const t = useTranslation('reader_menu')
 
+  if (!readMode) return null
+
+  const openMenu = () =>
+    openTransientLayer(
+      () => setVisible(true),
+      () => setVisible(false),
+    )
+  const closeMenu = () => goBack(() => setVisible(false))
+
   return (
     <>
-      {visible && (
-        <Overlay
-          className="!bg-transparent"
-          onClick={() => setVisible(false)}
-        />
-      )}
+      {visible && <Overlay className="!bg-transparent" onClick={closeMenu} />}
       {readMode && !visible && (
         <button
           className="bg-surface/90 text-outline border-outline-variant fixed left-1/2 z-20 flex h-7 w-14 -translate-x-1/2 items-center justify-center rounded-t border border-b-0 shadow"
           style={{ bottom: 'env(safe-area-inset-bottom)' }}
           title={t('open')}
           aria-label={t('open')}
-          onClick={() => setVisible(true)}
+          onClick={openMenu}
         >
           <MdMoreHoriz size={28} />
         </button>
@@ -269,14 +279,10 @@ function NavigationBar() {
           readMode && !visible && 'hidden',
         )}
       >
-        {readMode ? (
-          <div className="flex">
-            <PageActionBar env={Env.Mobile} className="flex-1" />
-            <ViewActionBar env={Env.Mobile} className="flex-[2.5]" />
-          </div>
-        ) : (
-          <PageActionBar env={Env.Mobile} />
-        )}
+        <div className="flex">
+          <PageActionBar env={Env.Mobile} className="flex-1" />
+          <ViewActionBar env={Env.Mobile} className="flex-[2.5]" />
+        </div>
       </div>
     </>
   )
@@ -334,7 +340,9 @@ const SideBar: React.FC = () => {
 
   return (
     <>
-      {action && mobile && <Overlay onClick={() => setAction(undefined)} />}
+      {action && mobile && (
+        <Overlay onClick={() => goBack(() => setAction(undefined))} />
+      )}
       <div
         className={clsx(
           'SideBar bg-surface flex flex-col',
