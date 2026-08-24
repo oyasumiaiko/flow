@@ -34,6 +34,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone"],
   "orientation": "any",
   "categories": ["books", "productivity"],
   "prefer_related_applications": false,
@@ -41,8 +42,8 @@
     {
       "action": "/",
       "accept": {
-        "application/epub+zip": [".epub"],
-        "application/epub": [".epub"]
+        "application/epub+zip": ".epub",
+        "application/epub": ".epub"
       },
       "launch_type": "single-client"
     }

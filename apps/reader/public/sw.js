@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flow-static-v5'
+const CACHE_NAME = 'flow-static-v3'
 const STATIC_ASSETS = [
   '/icons/192.png',
   '/icons/512.png',
