@@ -54,19 +54,34 @@ test('legacy Dropbox, ZIP backup, and local preference stores are absent', async
   assert.doesNotMatch(combined, /application\/zip|\.zip['"]/)
 })
 
-test('mobile library scrolling and continuous reading remain enabled', async () => {
-  const [styles, page, home, touchGuard, reader, typography] =
-    await Promise.all([
-      readFile(new URL('src/pages/styles.css', root), 'utf8'),
-      readFile(new URL('src/components/Page.tsx', root), 'utf8'),
-      readFile(new URL('src/pages/index.tsx', root), 'utf8'),
-      readFile(new URL('src/hooks/useDisablePinchZooming.ts', root), 'utf8'),
-      readFile(new URL('src/models/reader.ts', root), 'utf8'),
-      readFile(
-        new URL('src/components/viewlets/TypographyView.tsx', root),
-        'utf8',
-      ),
-    ])
+test('mobile reading uses a stable windowed full-spine document flow', async () => {
+  const [
+    styles,
+    page,
+    home,
+    touchGuard,
+    reader,
+    readerView,
+    layout,
+    stable,
+    typography,
+  ] = await Promise.all([
+    readFile(new URL('src/pages/styles.css', root), 'utf8'),
+    readFile(new URL('src/components/Page.tsx', root), 'utf8'),
+    readFile(new URL('src/pages/index.tsx', root), 'utf8'),
+    readFile(new URL('src/hooks/useDisablePinchZooming.ts', root), 'utf8'),
+    readFile(new URL('src/models/reader.ts', root), 'utf8'),
+    readFile(new URL('src/components/Reader.tsx', root), 'utf8'),
+    readFile(new URL('src/components/Layout.tsx', root), 'utf8'),
+    readFile(
+      new URL('../../packages/epubjs/src/managers/stable/index.js', root),
+      'utf8',
+    ),
+    readFile(
+      new URL('src/components/viewlets/TypographyView.tsx', root),
+      'utf8',
+    ),
+  ])
 
   assert.match(styles, /overflow-y:\s*auto/)
   assert.match(styles, /touch-action:\s*pan-y/)
@@ -74,8 +89,27 @@ test('mobile library scrolling and continuous reading remain enabled', async () 
   assert.doesNotMatch(home, /library-scroll/)
   assert.match(page, /scroll h-full/)
   assert.match(touchGuard, /event\.touches\.length < 2/)
-  assert.match(reader, /manager:\s*readingMode === 'scrolled'/)
-  assert.match(reader, /flow:[\s\S]*'scrolled-continuous'/)
+  assert.match(reader, /manager:[\s\S]*StableViewManager/)
+  assert.match(reader, /flow:[\s\S]*'scrolled'/)
+  assert.doesNotMatch(reader, /'scrolled-continuous'/)
+  assert.match(stable, /collectSections/)
+  assert.match(stable, /buildSlots/)
+  assert.match(stable, /view\.element\.style\.height/)
+  assert.match(stable, /LOAD_BUFFER_SCREENS/)
+  assert.match(stable, /KEEP_BUFFER_SCREENS/)
+  assert.match(stable, /MAX_LOAD_VIEWS/)
+  assert.match(stable, /MAX_KEEP_VIEWS/)
+  assert.match(stable, /releaseView/)
+  assert.match(stable, /view\.destroy\(\)/)
+  assert.match(stable, /view\.section\.unload\(\)/)
+  assert.match(stable, /this\.scrollTop \+= delta/)
+  assert.doesNotMatch(stable, /this\.views\.(prepend|remove)/)
+  assert.doesNotMatch(stable, /this\.(next|prev)\(/)
+  assert.match(readerView, /useRenditionEvent\(rendition, 'touchend'/)
+  assert.match(readerView, /if \(!start \|\| isScrolled\) return/)
+  assert.match(layout, /reader_menu/)
+  assert.match(layout, /<PageActionBar env={Env\.Mobile}/)
+  assert.match(layout, /<ViewActionBar env={Env\.Mobile}/)
   assert.match(typography, /reading_mode\.scrolled/)
 })
 
