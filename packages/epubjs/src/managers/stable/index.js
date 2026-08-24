@@ -1,11 +1,17 @@
 import { EVENTS } from '../../utils/constants'
-import { isNumber } from '../../utils/core'
+import {
+  isNumber,
+  requestAnimationFrame as requestFrame,
+} from '../../utils/core'
 import ContinuousViewManager from '../continuous'
 
-const LOAD_BUFFER_SCREENS = 3
-const KEEP_BUFFER_SCREENS = 7
+const LOAD_BUFFER_SCREENS = 8
+const KEEP_BUFFER_SCREENS = 12
 const MAX_LOAD_VIEWS = 24
 const MAX_KEEP_VIEWS = 48
+const ESTIMATED_BYTES_PER_SCREEN = 2400
+const MIN_SLOT_SCREENS = 0.5
+const LAYOUT_ASSET_TIMEOUT = 3000
 
 /**
  * A native-scrolling manager with a permanent slot for every linear spine
@@ -22,6 +28,12 @@ class StableViewManager extends ContinuousViewManager {
     this.slotsReady = false
     this.renderedViews = new Set()
     this.positioning = false
+    this.viewportSlotHeight = 640
+    this.pixelsPerByte = this.viewportSlotHeight / ESTIMATED_BYTES_PER_SCREEN
+    this.calibrated = false
+    this.windowUpdatePromise = undefined
+    this.windowUpdatePending = false
+    this.scrollFrame = undefined
   }
 
   display(section, target) {
@@ -59,18 +71,37 @@ class StableViewManager extends ContinuousViewManager {
       this.container?.clientHeight || this._stageSize?.height || 0,
       640,
     )
+    this.viewportSlotHeight = placeholderHeight
+    this.pixelsPerByte = placeholderHeight / ESTIMATED_BYTES_PER_SCREEN
+    this.calibrated = false
 
     this.collectSections(section).forEach((item) => {
       const view = this.append(item)
+      const estimateWeight = this.sectionWeight(item)
+      const estimatedHeight = this.estimatedHeight(estimateWeight)
       view.stableSlotIndex = this.views.length - 1
-      view.stableHeight = placeholderHeight
+      view.stableEstimateWeight = estimateWeight
+      view.stableHeight = estimatedHeight
       view.stableMeasured = false
-      view.element.style.height = `${placeholderHeight}px`
+      view.element.style.height = `${estimatedHeight}px`
       view.element.style.width = '100%'
       view.on(EVENTS.VIEWS.RESIZED, (size) => this.handleViewResize(view, size))
     })
 
     this.slotsReady = true
+  }
+
+  sectionWeight(section) {
+    const weight = Number(section?.estimatedLength)
+    return Number.isFinite(weight) && weight > 0 ? weight : undefined
+  }
+
+  estimatedHeight(weight) {
+    if (!weight) return this.viewportSlotHeight
+    return Math.max(
+      this.viewportSlotHeight * MIN_SLOT_SCREENS,
+      weight * this.pixelsPerByte,
+    )
   }
 
   collectSections(section) {
@@ -131,6 +162,7 @@ class StableViewManager extends ContinuousViewManager {
 
     view.stableLoading = view
       .display(this.request)
+      .then(() => this.waitForViewLayout(view))
       .then(() => {
         view.show()
         this.renderedViews.add(view)
@@ -141,6 +173,36 @@ class StableViewManager extends ContinuousViewManager {
       })
 
     return view.stableLoading
+  }
+
+  waitForViewLayout(view) {
+    const doc = view.document
+    if (!doc) return Promise.resolve()
+
+    const imagePromises = Array.from(doc.images || [])
+      .filter((image) => !image.complete)
+      .map(
+        (image) =>
+          new Promise((resolve) => {
+            image.addEventListener('load', resolve, { once: true })
+            image.addEventListener('error', resolve, { once: true })
+          }),
+      )
+    const fontsReady = doc.fonts?.ready || Promise.resolve()
+    const assetsReady = Promise.all([...imagePromises, fontsReady])
+    const timeout = new Promise((resolve) =>
+      setTimeout(resolve, LAYOUT_ASSET_TIMEOUT),
+    )
+
+    return Promise.race([assetsReady, timeout]).then(
+      () =>
+        new Promise((resolve) => {
+          requestFrame(() => {
+            view.expand(true)
+            requestFrame(resolve)
+          })
+        }),
+    )
   }
 
   handleViewResize(view, size) {
@@ -163,6 +225,78 @@ class StableViewManager extends ContinuousViewManager {
     ) {
       this.scrollBy(0, delta, true)
       this.scrollTop += delta
+    } else if (
+      !this.positioning &&
+      delta &&
+      previousHeight > 0 &&
+      viewTop < this.scrollTop &&
+      this.scrollTop < viewTop + previousHeight
+    ) {
+      const relativeAnchor = Math.min(
+        Math.max((this.scrollTop - viewTop) / previousHeight, 0),
+        1,
+      )
+      const correction = delta * relativeAnchor
+      this.scrollBy(0, correction, true)
+      this.scrollTop += correction
+    }
+
+    this.calibrateEstimates(view, nextHeight)
+  }
+
+  calibrateEstimates(view, measuredHeight) {
+    const weight = view.stableEstimateWeight
+    if (
+      this.calibrated ||
+      !weight ||
+      weight < 1200 ||
+      measuredHeight < this.viewportSlotHeight * 0.75
+    ) {
+      return
+    }
+
+    const baseline = this.viewportSlotHeight / ESTIMATED_BYTES_PER_SCREEN
+    const measuredRatio = measuredHeight / weight
+    this.pixelsPerByte = Math.min(
+      Math.max(measuredRatio, baseline / 4),
+      baseline * 4,
+    )
+    this.calibrated = true
+    this.applyEstimatedHeights()
+  }
+
+  applyEstimatedHeights() {
+    const views = this.views.all()
+    if (!views.length) return
+
+    const anchorIndex = this.indexAtOffset(this.scrollTop + 1)
+    const anchor = views[anchorIndex]
+    const oldAnchorTop = anchor?.element.offsetTop || 0
+    const oldAnchorHeight = anchor?.stableHeight || 1
+    const anchorRatio = Math.min(
+      Math.max((this.scrollTop - oldAnchorTop) / oldAnchorHeight, 0),
+      1,
+    )
+
+    for (const view of views) {
+      if (view.stableMeasured || !view.stableEstimateWeight) continue
+      const height = this.estimatedHeight(view.stableEstimateWeight)
+      view.stableHeight = height
+      view.element.style.height = `${height}px`
+    }
+
+    if (!anchor || this.positioning) return
+    const newAnchorTop = anchor.element.offsetTop
+    const newAnchorHeight = anchor.stableHeight || oldAnchorHeight
+    const nextScrollTop =
+      newAnchorTop +
+      (anchor.stableMeasured
+        ? this.scrollTop - oldAnchorTop
+        : newAnchorHeight * anchorRatio)
+    const correction = nextScrollTop - this.scrollTop
+    if (correction) {
+      this.scrollBy(0, correction, true)
+      this.scrollTop = nextScrollTop
     }
   }
 
@@ -245,6 +379,22 @@ class StableViewManager extends ContinuousViewManager {
     return Promise.all(displays).then(() => undefined)
   }
 
+  requestWindowUpdate() {
+    if (this.windowUpdatePromise) {
+      this.windowUpdatePending = true
+      return this.windowUpdatePromise
+    }
+
+    this.windowUpdatePromise = this.updateWindow().finally(() => {
+      this.windowUpdatePromise = undefined
+      if (this.windowUpdatePending) {
+        this.windowUpdatePending = false
+        this.requestWindowUpdate()
+      }
+    })
+    return this.windowUpdatePromise
+  }
+
   releaseView(view) {
     if (!view || !view.displayed || view.stableLoading) return
 
@@ -276,8 +426,20 @@ class StableViewManager extends ContinuousViewManager {
 
   erase() {}
 
+  addScrollListeners() {
+    super.addScrollListeners()
+    this._scrolled.cancel?.()
+    this._scrolled = () => {
+      if (this.scrollFrame) return
+      this.scrollFrame = requestFrame(() => {
+        this.scrollFrame = undefined
+        this.scrolled()
+      })
+    }
+  }
+
   scrolled() {
-    this.q.enqueue(() => this.updateWindow())
+    this.requestWindowUpdate()
 
     this.emit(EVENTS.MANAGERS.SCROLL, {
       top: this.scrollTop,
@@ -296,12 +458,18 @@ class StableViewManager extends ContinuousViewManager {
   clear() {
     this.slotsReady = false
     this.renderedViews?.clear()
+    this.windowUpdatePromise = undefined
+    this.windowUpdatePending = false
     super.clear()
   }
 
   destroy() {
     this.slotsReady = false
     this.renderedViews.clear()
+    if (this.scrollFrame) cancelAnimationFrame(this.scrollFrame)
+    this.scrollFrame = undefined
+    this.windowUpdatePromise = undefined
+    this.windowUpdatePending = false
     super.destroy()
   }
 }
