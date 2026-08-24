@@ -76,6 +76,14 @@ export default {
   'settings.synchronization.status.syncing': '同期中…',
   'settings.synchronization.status.error': '同期に失敗しました',
   'settings.synchronization.retry': '再試行',
+  'settings.install.title': 'アプリをインストール',
+  'settings.install.description':
+    'ホーム画面から起動し、フルスクリーンまたは独立ウィンドウで読書できます。',
+  'settings.install.action': 'Flow をインストール',
+  'settings.install.installed':
+    'Flow はインストール済みアプリとして実行中です。',
+  'settings.install.browser_menu':
+    'インストールボタンが表示されない場合は一度再読み込みし、Chrome メニューの「アプリをインストール」を選択してください。',
   'settings.cache': 'キャッシュ',
   'settings.cache.clear': 'クリア',
   'settings.text_selection_menu': 'テキスト選択メニュー',

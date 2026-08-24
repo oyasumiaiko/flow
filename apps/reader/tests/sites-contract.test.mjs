@@ -70,3 +70,20 @@ test('mobile library scrolling and continuous reading remain enabled', async () 
   assert.match(reader, /flow:[\s\S]*'scrolled-continuous'/)
   assert.match(typography, /reading_mode\.scrolled/)
 })
+
+test('the reader remains installable as a standalone mobile app', async () => {
+  const [manifestText, app, document, serviceWorker] = await Promise.all([
+    readFile(new URL('public/manifest.json', root), 'utf8'),
+    readFile(new URL('src/pages/_app.tsx', root), 'utf8'),
+    readFile(new URL('src/pages/_document.tsx', root), 'utf8'),
+    readFile(new URL('public/sw.js', root), 'utf8'),
+  ])
+  const manifest = JSON.parse(manifestText)
+
+  assert.equal(manifest.display, 'standalone')
+  assert.deepEqual(manifest.display_override, ['fullscreen', 'standalone'])
+  assert.equal(manifest.scope, '/')
+  assert.match(app, /initializePwa\(\)/)
+  assert.match(document, /apple-mobile-web-app-capable/)
+  assert.match(serviceWorker, /addEventListener\('fetch'/)
+})

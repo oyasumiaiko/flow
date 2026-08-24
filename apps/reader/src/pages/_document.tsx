@@ -26,6 +26,13 @@ function PWA() {
     <>
       <link rel="manifest" href="/manifest.json" />
       <meta id="theme-color" name="theme-color" content={background.light} />
+      <meta name="mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-title" content="Flow" />
+      <meta
+        name="apple-mobile-web-app-status-bar-style"
+        content="black-translucent"
+      />
       <link rel="apple-touch-icon" href="/icons/192.png" />
     </>
   )

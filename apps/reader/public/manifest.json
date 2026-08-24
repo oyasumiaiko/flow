@@ -1,8 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/web-manifest-combined.json",
-  "name": "Flow",
+  "id": "/",
+  "name": "Flow Cloud Reader",
   "short_name": "Flow",
-  "description": "Redefine EPUB reader",
+  "description": "A private, cross-device EPUB library and reader",
+  "lang": "zh-CN",
   "icons": [
     {
       "src": "/icons/192.png",
@@ -30,8 +32,12 @@
   "theme_color": "#fff",
   "background_color": "#fff",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "categories": ["books", "productivity"],
+  "prefer_related_applications": false,
   "file_handlers": [
     {
       "action": "/",

@@ -1,4 +1,5 @@
 import { useRouter } from 'next/router'
+import { useSyncExternalStore } from 'react'
 
 import { db } from '@flow/reader/db'
 import {
@@ -7,6 +8,11 @@ import {
   useCloudStatus,
   useTranslation,
 } from '@flow/reader/hooks'
+import {
+  getPwaInstallState,
+  promptPwaInstall,
+  subscribePwaInstall,
+} from '@flow/reader/pwa'
 import {
   defaultReaderMetaSettings,
   ReaderMetaSlot,
@@ -68,6 +74,7 @@ export const Settings: React.FC = () => {
           />
         </Item>
         <Synchronization />
+        <InstallApp />
         <Item title={t('cache')}>
           <Button
             variant="secondary"
@@ -81,6 +88,30 @@ export const Settings: React.FC = () => {
         </Item>
       </div>
     </Page>
+  )
+}
+
+const InstallApp: React.FC = () => {
+  const t = useTranslation('settings.install')
+  const state = useSyncExternalStore(
+    subscribePwaInstall,
+    getPwaInstallState,
+    () => 'unavailable',
+  )
+
+  return (
+    <Item title={t('title')}>
+      <p className="text-on-surface-variant">{t('description')}</p>
+      {state === 'available' && (
+        <Button className="mt-2" onClick={() => void promptPwaInstall()}>
+          {t('action')}
+        </Button>
+      )}
+      {state === 'installed' && <p className="mt-2">{t('installed')}</p>}
+      {state === 'unavailable' && (
+        <p className="text-on-surface-variant mt-2">{t('browser_menu')}</p>
+      )}
+    </Item>
   )
 }
 

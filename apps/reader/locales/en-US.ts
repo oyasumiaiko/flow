@@ -77,6 +77,13 @@ export default {
   'settings.synchronization.status.syncing': 'Synchronizing…',
   'settings.synchronization.status.error': 'Synchronization failed',
   'settings.synchronization.retry': 'Retry',
+  'settings.install.title': 'Install App',
+  'settings.install.description':
+    'Launch Flow from your home screen in an immersive fullscreen or standalone window.',
+  'settings.install.action': 'Install Flow',
+  'settings.install.installed': 'Flow is running as an installed app.',
+  'settings.install.browser_menu':
+    'If the install button is not ready, refresh once and choose “Install app” from the Chrome menu.',
   'settings.cache': 'Cache',
   'settings.cache.clear': 'Clear',
   'settings.text_selection_menu': 'Text Selection Menu',

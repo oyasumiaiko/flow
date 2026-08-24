@@ -76,6 +76,13 @@ export default {
   'settings.synchronization.status.syncing': '正在同步…',
   'settings.synchronization.status.error': '同步失败',
   'settings.synchronization.retry': '重试',
+  'settings.install.title': '安装应用',
+  'settings.install.description':
+    '安装后可从桌面直接启动，并以全屏或独立窗口沉浸阅读。',
+  'settings.install.action': '安装 Flow',
+  'settings.install.installed': 'Flow 已作为应用运行。',
+  'settings.install.browser_menu':
+    '若安装按钮尚未出现，请刷新一次，然后从 Chrome 菜单选择“安装应用”。',
   'settings.cache': '缓存',
   'settings.cache.clear': '清除',
   'settings.text_selection_menu': '文本选择菜单',
