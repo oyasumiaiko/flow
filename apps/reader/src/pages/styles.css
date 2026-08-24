@@ -70,10 +70,6 @@ input[type='color']::-webkit-color-swatch {
   @apply flex min-h-0 flex-col overflow-hidden;
 }
 
-.library-scroll {
-  padding-bottom: 1rem;
-}
-
 .NavigationBar {
   padding-bottom: env(safe-area-inset-bottom);
 }

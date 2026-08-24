@@ -55,21 +55,23 @@ test('legacy Dropbox, ZIP backup, and local preference stores are absent', async
 })
 
 test('mobile library scrolling and continuous reading remain enabled', async () => {
-  const [styles, page, touchGuard, reader, typography] = await Promise.all([
-    readFile(new URL('src/pages/styles.css', root), 'utf8'),
-    readFile(new URL('src/components/Page.tsx', root), 'utf8'),
-    readFile(new URL('src/hooks/useDisablePinchZooming.ts', root), 'utf8'),
-    readFile(new URL('src/models/reader.ts', root), 'utf8'),
-    readFile(
-      new URL('src/components/viewlets/TypographyView.tsx', root),
-      'utf8',
-    ),
-  ])
+  const [styles, page, home, touchGuard, reader, typography] =
+    await Promise.all([
+      readFile(new URL('src/pages/styles.css', root), 'utf8'),
+      readFile(new URL('src/components/Page.tsx', root), 'utf8'),
+      readFile(new URL('src/pages/index.tsx', root), 'utf8'),
+      readFile(new URL('src/hooks/useDisablePinchZooming.ts', root), 'utf8'),
+      readFile(new URL('src/models/reader.ts', root), 'utf8'),
+      readFile(
+        new URL('src/components/viewlets/TypographyView.tsx', root),
+        'utf8',
+      ),
+    ])
 
   assert.match(styles, /overflow-y:\s*auto/)
   assert.match(styles, /touch-action:\s*pan-y/)
-  assert.match(styles, /\.library-scroll\s*{\s*padding-bottom:\s*1rem/)
-  assert.doesNotMatch(styles, /padding-bottom:\s*calc\(4rem/)
+  assert.match(home, /scroll-parent h-full px-4/)
+  assert.doesNotMatch(home, /library-scroll/)
   assert.match(page, /scroll h-full/)
   assert.match(touchGuard, /event\.touches\.length < 2/)
   assert.match(reader, /manager:\s*readingMode === 'scrolled'/)
@@ -92,10 +94,10 @@ test('the reader remains installable as a standalone mobile app', async () => {
   assert.equal(manifest.theme_color, '#24292e')
   assert.equal(manifest.scope, '/')
   assert.match(app, /initializePwa\(\)/)
-  assert.match(pwa, /register\('\/sw\.js\?v=3'/)
-  assert.match(document, /manifest\.json\?v=3/)
+  assert.match(pwa, /register\('\/sw\.js\?v=4'/)
+  assert.match(document, /manifest\.json\?v=4/)
+  assert.match(document, /name="mobile-web-app-capable" content="yes"/)
   assert.match(document, /apple-mobile-web-app-capable/)
-  assert.doesNotMatch(document, /name="mobile-web-app-capable"/)
   assert.doesNotMatch(serviceWorker, /'\/manifest\.json'/)
   assert.match(serviceWorker, /addEventListener\('fetch'/)
 })
