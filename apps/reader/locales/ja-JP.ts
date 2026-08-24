@@ -1,5 +1,9 @@
 export default {
   'home.title': 'ホーム',
+  'home.library': 'ライブラリ',
+  'home.books': '冊',
+  'home.menu': 'ライブラリメニュー',
+  'home.settings': '設定',
   'home.share': '共有',
   'home.download': 'ダウンロード',
   'home.download_sample_book': 'サンプルブックをダウンロード',
@@ -8,6 +12,13 @@ export default {
   'home.select_all': 'すべて選択',
   'home.deselect_all': 'すべて選択解除',
   'home.import': 'インポート',
+  'home.import_device': '端末から EPUB をインポート',
+  'home.import_link': 'リンクからインポート',
+  'home.import_first_book': '最初の本をインポート',
+  'home.empty_title': 'ライブラリは空です',
+  'home.empty_description':
+    '右上のプラスボタンから端末またはリンクの EPUB を追加できます。',
+  'home.selected': '冊を選択中',
   'home.delete': '削除',
   'home.cloud_load_failed': 'Sites ライブラリを読み込めません',
   'home.retry': '再試行',
@@ -53,6 +64,7 @@ export default {
   'theme.background_color': '背景色',
 
   'settings.title': '設定',
+  'settings.back': '前の画面に戻る',
   'settings.language': '言語',
   'settings.color_scheme': '配色',
   'settings.color_scheme.system': 'システム',
