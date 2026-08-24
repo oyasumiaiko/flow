@@ -673,7 +673,9 @@ interface ReaderMetaContext {
   navPath: { label: string }[]
   location?: {
     start?: {
+      index?: number
       href?: string
+      location?: number
       displayed?: {
         page?: number
         total?: number
@@ -681,6 +683,7 @@ interface ReaderMetaContext {
     }
   }
   percentage?: number
+  globalLocationTotal?: number
 }
 
 function getReaderMetaText(
@@ -704,7 +707,14 @@ function getReaderMetaText(
       const page = displayed?.page
       const total = displayed?.total
       if (page === undefined || total === undefined) return
-      return `${page} / ${total}`
+      const chapter = context.navPath.at(-1)?.label?.trim()
+      return chapter ? `${page} / ${total} · ${chapter}` : `${page} / ${total}`
+    }
+    case 'globalPage': {
+      const page = context.location?.start?.location
+      const total = context.globalLocationTotal
+      if (page === undefined || page < 0 || !total) return '…'
+      return `${page + 1} / ${total + 1}`
     }
     case 'href':
       return context.location?.start?.href
@@ -722,18 +732,25 @@ const ReaderPaneHeader: React.FC<ReaderPaneHeaderProps> = ({
   deviceMeta,
 }) => {
   const [settings] = useSettings()
-  const { location, book } = useSnapshot(tab)
+  const { location, book, globalLocationTotal } = useSnapshot(tab)
   const navPath = tab.getNavPath()
   const context: ReaderMetaContext = {
     tab,
     navPath,
     location,
     percentage: book.percentage,
+    globalLocationTotal,
   }
   const leftSlot =
     settings.readerHeaderLeft ?? defaultReaderMetaSettings.readerHeaderLeft
   const rightSlot =
     settings.readerHeaderRight ?? defaultReaderMetaSettings.readerHeaderRight
+
+  useEffect(() => {
+    if (leftSlot === 'globalPage' || rightSlot === 'globalPage') {
+      void tab.ensureGlobalLocations()
+    }
+  }, [leftSlot, rightSlot, tab])
 
   useEffect(() => {
     navPath.forEach((i) => (i.expanded = true))
@@ -759,18 +776,26 @@ interface FooterProps {
 }
 const ReaderPaneFooter: React.FC<FooterProps> = ({ tab, deviceMeta }) => {
   const [settings] = useSettings()
-  const { locationToReturn, location, book } = useSnapshot(tab)
+  const { locationToReturn, location, book, globalLocationTotal } =
+    useSnapshot(tab)
   const navPath = tab.getNavPath()
   const context: ReaderMetaContext = {
     tab,
     navPath,
     location,
     percentage: book.percentage,
+    globalLocationTotal,
   }
   const leftSlot =
     settings.readerFooterLeft ?? defaultReaderMetaSettings.readerFooterLeft
   const rightSlot =
     settings.readerFooterRight ?? defaultReaderMetaSettings.readerFooterRight
+
+  useEffect(() => {
+    if (leftSlot === 'globalPage' || rightSlot === 'globalPage') {
+      void tab.ensureGlobalLocations()
+    }
+  }, [leftSlot, rightSlot, tab])
 
   return (
     <Bar>
