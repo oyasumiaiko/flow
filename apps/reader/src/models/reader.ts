@@ -269,7 +269,11 @@ export class BookTab extends BaseTab {
   }
 
   get view() {
-    return this.rendition?.manager?.views._views[0]
+    const manager = this.rendition?.manager
+    return (
+      manager?.current?.() ??
+      manager?.views?.displayed?.().find((view: any) => view.contents)
+    )
   }
 
   getNavPath(navItem = this.currentNavItem) {
@@ -407,10 +411,17 @@ export class BookTab extends BaseTab {
         timestamp: Date.now(),
       })
 
+      const start = loc.start
+      const currentSection =
+        this.sections?.find((section) =>
+          compareHref(section.href, start.href),
+        ) ?? (this.epub as any)?.spine?.get(start.href)
+      if (currentSection) this.section = ref(currentSection)
+
       // calculate percentage
       if (this.sections) {
-        const start = loc.start
         const i = this.sections.findIndex((s) => s.href === start.href)
+        if (i < 0) return
         const previousSectionsLength = this.sections
           .slice(0, i)
           .reduce((acc, s) => acc + s.length, 0)
@@ -439,7 +450,9 @@ export class BookTab extends BaseTab {
     })
     this.rendition.on('rendered', (section: ISection, view: any) => {
       console.log('rendered', [section, view])
-      this.section = ref(section)
+      if (!this.currentHref || compareHref(section.href, this.currentHref)) {
+        this.section = ref(section)
+      }
       this.iframe = ref(view.window as Window) as unknown as Window & AsRef
     })
     this.rendition.on('selected', (...args: any[]) => {
