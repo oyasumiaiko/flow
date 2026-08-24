@@ -27,6 +27,7 @@ export const defaultReaderMetaSettings: Required<ReaderMetaSettings> = {
 }
 
 export type ColorScheme = 'light' | 'dark' | 'system'
+export type ReadingMode = 'paginated' | 'scrolled'
 
 export interface Settings extends TypographyConfiguration, ReaderMetaSettings {
   theme?: ThemeConfiguration
@@ -37,6 +38,7 @@ export interface Settings extends TypographyConfiguration, ReaderMetaSettings {
 }
 
 export interface TypographyConfiguration {
+  readingMode?: ReadingMode
   fontSizeOffset?: number
   fontWeightOffset?: number
   fontFamily?: string

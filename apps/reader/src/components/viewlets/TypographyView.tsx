@@ -3,10 +3,11 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { MdAdd, MdRemove } from 'react-icons/md'
 
 import { RenditionSpread } from '@flow/epubjs/types/rendition'
-import { useTranslation } from '@flow/reader/hooks'
+import { useMobile, useTranslation } from '@flow/reader/hooks'
 import { reader, useReaderSnapshot } from '@flow/reader/models'
 import {
   defaultSettings,
+  ReadingMode,
   TypographyConfiguration,
   useSettings,
 } from '@flow/reader/state'
@@ -27,6 +28,7 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
   const [settings, setSettings] = useSettings()
   const [scope, setScope] = useState(TypographyScope.Book)
   const t = useTranslation('typography')
+  const mobile = useMobile()
 
   const [localFonts, setLocalFonts] = useState<string[]>()
 
@@ -36,6 +38,7 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
     fontWeightOffset,
     lineHeight,
     zoom,
+    readingMode,
     spread,
     spreadMaxWidth,
     spreadPageInnerMargin,
@@ -45,6 +48,8 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
     scope === TypographyScope.Book
       ? focusedBookTab?.book.configuration?.typography ?? defaultSettings
       : settings
+  const effectiveReadingMode =
+    readingMode ?? (mobile ? 'scrolled' : 'paginated')
 
   const setTypography = useCallback(
     <K extends keyof TypographyConfiguration>(
@@ -138,53 +143,71 @@ export const TypographyView: React.FC<PaneViewProps> = (props) => {
         key={`${scope}${focusedBookTab?.id}`}
       >
         <Select
-          name={t('page_view')}
-          value={spread ?? RenditionSpread.Auto}
+          name={t('reading_mode')}
+          value={readingMode ?? ''}
           onChange={(e) => {
-            setTypography('spread', e.target.value as RenditionSpread)
+            setTypography(
+              'readingMode',
+              (e.target.value || undefined) as ReadingMode | undefined,
+            )
           }}
         >
-          <option value={RenditionSpread.None}>
-            {t('page_view.single_page')}
-          </option>
-          <option value={RenditionSpread.Auto}>
-            {t('page_view.double_page')}
-          </option>
+          <option value="">{t('reading_mode.auto')}</option>
+          <option value="paginated">{t('reading_mode.paginated')}</option>
+          <option value="scrolled">{t('reading_mode.scrolled')}</option>
         </Select>
-        <NumberField
-          name={t('double_page.max_width')}
-          min={600}
-          step={20}
-          defaultValue={spreadMaxWidth}
-          onChange={(v) => {
-            setTypography('spreadMaxWidth', v || undefined)
-          }}
-        />
-        <Checkbox
-          name={t('double_page.respect_aspect_ratio')}
-          checked={!!spreadRespectAspectRatio}
-          onChange={(e) => {
-            setTypography('spreadRespectAspectRatio', e.target.checked)
-          }}
-        />
-        <NumberField
-          name={t('double_page.page_inner_margin')}
-          min={0}
-          step={1}
-          defaultValue={spreadPageInnerMargin}
-          onChange={(v) => {
-            setTypography('spreadPageInnerMargin', v || undefined)
-          }}
-        />
-        <NumberField
-          name={t('double_page.page_outer_margin')}
-          min={0}
-          step={1}
-          defaultValue={spreadPageOuterMargin}
-          onChange={(v) => {
-            setTypography('spreadPageOuterMargin', v || undefined)
-          }}
-        />
+        {effectiveReadingMode === 'paginated' && (
+          <>
+            <Select
+              name={t('page_view')}
+              value={spread ?? RenditionSpread.Auto}
+              onChange={(e) => {
+                setTypography('spread', e.target.value as RenditionSpread)
+              }}
+            >
+              <option value={RenditionSpread.None}>
+                {t('page_view.single_page')}
+              </option>
+              <option value={RenditionSpread.Auto}>
+                {t('page_view.double_page')}
+              </option>
+            </Select>
+            <NumberField
+              name={t('double_page.max_width')}
+              min={600}
+              step={20}
+              defaultValue={spreadMaxWidth}
+              onChange={(v) => {
+                setTypography('spreadMaxWidth', v || undefined)
+              }}
+            />
+            <Checkbox
+              name={t('double_page.respect_aspect_ratio')}
+              checked={!!spreadRespectAspectRatio}
+              onChange={(e) => {
+                setTypography('spreadRespectAspectRatio', e.target.checked)
+              }}
+            />
+            <NumberField
+              name={t('double_page.page_inner_margin')}
+              min={0}
+              step={1}
+              defaultValue={spreadPageInnerMargin}
+              onChange={(v) => {
+                setTypography('spreadPageInnerMargin', v || undefined)
+              }}
+            />
+            <NumberField
+              name={t('double_page.page_outer_margin')}
+              min={0}
+              step={1}
+              defaultValue={spreadPageOuterMargin}
+              onChange={(v) => {
+                setTypography('spreadPageOuterMargin', v || undefined)
+              }}
+            />
+          </>
+        )}
         <Checkbox
           name={t('auto_hide_cursor')}
           checked={!!settings.autoHideCursorInReading}

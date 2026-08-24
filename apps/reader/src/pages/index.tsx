@@ -318,7 +318,7 @@ const Library: React.FC = () => {
         </div>
       </div>
 
-      <div className="scroll h-full">
+      <div className="scroll library-scroll min-h-0 flex-1">
         <ul
           className="grid"
           style={{

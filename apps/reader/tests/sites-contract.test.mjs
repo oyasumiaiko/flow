@@ -53,3 +53,20 @@ test('legacy Dropbox, ZIP backup, and local preference stores are absent', async
   )
   assert.doesNotMatch(combined, /application\/zip|\.zip['"]/)
 })
+
+test('mobile library scrolling and continuous reading remain enabled', async () => {
+  const [styles, reader, typography] = await Promise.all([
+    readFile(new URL('src/pages/styles.css', root), 'utf8'),
+    readFile(new URL('src/models/reader.ts', root), 'utf8'),
+    readFile(
+      new URL('src/components/viewlets/TypographyView.tsx', root),
+      'utf8',
+    ),
+  ])
+
+  assert.match(styles, /overflow-y:\s*auto/)
+  assert.match(styles, /touch-action:\s*pan-y/)
+  assert.match(reader, /manager:\s*readingMode === 'scrolled'/)
+  assert.match(reader, /flow:[\s\S]*'scrolled-continuous'/)
+  assert.match(typography, /reading_mode\.scrolled/)
+})

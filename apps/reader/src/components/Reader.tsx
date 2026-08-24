@@ -51,6 +51,7 @@ import * as pages from './pages'
 
 function handleKeyDown(tab?: BookTab) {
   return (e: KeyboardEvent) => {
+    if (tab?.readingMode === 'scrolled') return
     try {
       switch (e.code) {
         case 'ArrowLeft':
@@ -245,6 +246,10 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   const [settings] = useSettings()
   const { dark } = useColorScheme()
   const [background] = useBackground()
+  const mobile = useMobile()
+  const readingMode =
+    typography.readingMode ?? (mobile ? 'scrolled' : 'paginated')
+  const isScrolled = readingMode === 'scrolled'
 
   const { iframe, rendition, rendered, container } = useSnapshot(tab)
 
@@ -281,7 +286,6 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   useSync(tab)
 
   const setNavbar = useSetAtom(navbarState)
-  const mobile = useMobile()
   const autoHideCursorInReading = !!settings.autoHideCursorInReading
   const shouldAutoHideCursor = autoHideCursorInReading && mobile === false
 
@@ -345,8 +349,8 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   }, [applyCustomStyle, tab])
 
   useEffect(() => {
-    if (renderRef.current) tab.render(renderRef.current)
-  }, [tab])
+    if (renderRef.current) tab.render(renderRef.current, readingMode)
+  }, [readingMode, tab])
 
   useEffect(() => {
     /**
@@ -354,8 +358,12 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
      * then call {@link updateCustomStyle} to update custom style
      * according to the latest layout
      */
-    rendition?.spread(typography.spread ?? RenditionSpread.Auto)
-  }, [typography.spread, rendition])
+    rendition?.spread(
+      isScrolled
+        ? RenditionSpread.None
+        : typography.spread ?? RenditionSpread.Auto,
+    )
+  }, [isScrolled, typography.spread, rendition])
 
   useEffect(() => applyCustomStyle(), [applyCustomStyle])
 
@@ -438,6 +446,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   )
 
   useEventListener(iframe, 'wheel', (e) => {
+    if (isScrolled) return
     handleWheelTurnPage(e.deltaY)
   })
 
@@ -496,7 +505,10 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       width: '100%',
       height: '100%',
       boxSizing: 'border-box',
+      touchAction: isScrolled ? 'pan-y' : undefined,
     }
+
+    if (isScrolled) return style
 
     if ((typography.spread ?? RenditionSpread.Auto) === RenditionSpread.None) {
       return style
@@ -528,6 +540,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     return style
   }, [
     tab.book.metadata.viewport,
+    isScrolled,
     typography.spread,
     typography.spreadMaxWidth,
     typography.spreadPageOuterMargin,
@@ -542,6 +555,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     typography.spreadMaxWidth,
     typography.spreadPageOuterMargin,
     typography.spreadRespectAspectRatio,
+    readingMode,
     viewportSize.height,
   ])
 
@@ -568,6 +582,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
           setCursorHidden(false)
         }}
         onWheel={(e) => {
+          if (isScrolled) return
           // 双页设置最大宽度后，两侧会出现留白；在留白区域滚轮也应保持翻页行为。
           e.preventDefault()
           handleWheelTurnPage(e.deltaY)

@@ -6,11 +6,13 @@ import { proxy, ref, snapshot, subscribe, useSnapshot } from 'valtio'
 
 import type { Rendition, Location, Book } from '@flow/epubjs'
 import Navigation, { NavItem } from '@flow/epubjs/types/navigation'
+import { RenditionSpread } from '@flow/epubjs/types/rendition'
 import Section from '@flow/epubjs/types/section'
 
 import { AnnotationColor, AnnotationType } from '../annotation'
 import { BookRecord, db } from '../db'
 import { fileToEpub } from '../file'
+import { ReadingMode } from '../state'
 import { defaultStyle } from '../styles'
 import { ensureCloudBookFile } from '../sync'
 
@@ -88,6 +90,8 @@ export class BookTab extends BaseTab {
   results?: IMatch[]
   activeResultID?: string
   rendered = false
+  readingMode: ReadingMode = 'paginated'
+  private renderGeneration = 0
 
   get container() {
     return this?.rendition?.manager?.container as HTMLDivElement | undefined
@@ -329,12 +333,30 @@ export class BookTab extends BaseTab {
 
   private _el?: HTMLDivElement
   onRender?: () => void
-  async render(el: HTMLDivElement) {
-    if (el === this._el) return
+  async render(el: HTMLDivElement, readingMode: ReadingMode) {
+    if (el === this._el && readingMode === this.readingMode) return
+    const generation = ++this.renderGeneration
+    const target = this.location?.start.cfi ?? this.book.cfi ?? undefined
+
+    if (this.epub) {
+      this.epub.destroy()
+      this.epub = undefined
+      this.rendition = undefined
+      this.iframe = undefined
+      this.rendered = false
+      el.replaceChildren()
+    }
+
     this._el = ref(el)
+    this.readingMode = readingMode
 
     const file = await ensureCloudBookFile(this.book)
-    this.epub = ref(await fileToEpub(file))
+    const epub = await fileToEpub(file)
+    if (generation !== this.renderGeneration) {
+      epub.destroy()
+      return
+    }
+    this.epub = ref(epub)
 
     this.epub.loaded.navigation.then((nav) => {
       this.nav = nav
@@ -362,13 +384,14 @@ export class BookTab extends BaseTab {
       this.epub.renderTo(el, {
         width: '100%',
         height: '100%',
+        manager: readingMode === 'scrolled' ? 'continuous' : 'default',
+        flow: readingMode === 'scrolled' ? 'scrolled-continuous' : 'paginated',
+        spread: readingMode === 'scrolled' ? RenditionSpread.None : undefined,
         allowScriptedContent: true,
       }),
     )
     console.log(this.rendition)
-    this.rendition.display(
-      this.location?.start.cfi ?? this.book.cfi ?? undefined,
-    )
+    this.rendition.display(target)
     this.rendition.themes.default(defaultStyle)
     this.rendition.hooks.render.register((view: any) => {
       console.log('hooks.render', view)
