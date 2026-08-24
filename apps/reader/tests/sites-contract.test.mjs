@@ -85,9 +85,9 @@ test('mobile reading uses a stable windowed full-spine document flow', async () 
 
   assert.match(styles, /overflow-y:\s*auto/)
   assert.match(styles, /touch-action:\s*pan-y/)
-  assert.match(home, /scroll-parent h-full px-4/)
+  assert.match(home, /scroll-parent bg-background h-full/)
   assert.doesNotMatch(home, /library-scroll/)
-  assert.match(page, /scroll h-full/)
+  assert.match(page, /scroll bg-background h-full/)
   assert.match(touchGuard, /event\.touches\.length < 2/)
   assert.match(reader, /manager:[\s\S]*StableViewManager/)
   assert.match(reader, /flow:[\s\S]*'scrolled'/)
@@ -113,6 +113,32 @@ test('mobile reading uses a stable windowed full-spine document flow', async () 
   assert.match(layout, /<PageActionBar env={Env\.Mobile}/)
   assert.match(layout, /<ViewActionBar env={Env\.Mobile}/)
   assert.match(typography, /reading_mode\.scrolled/)
+})
+
+test('mobile library chrome and Android back use explicit app navigation', async () => {
+  const [home, navigation, layout, settings] = await Promise.all([
+    readFile(new URL('src/pages/index.tsx', root), 'utf8'),
+    readFile(new URL('src/navigation.ts', root), 'utf8'),
+    readFile(new URL('src/components/Layout.tsx', root), 'utf8'),
+    readFile(new URL('src/components/pages/settings.tsx', root), 'utf8'),
+  ])
+
+  assert.match(home, /LibraryHeader/)
+  assert.match(home, /<MdAdd size=\{28\}/)
+  assert.match(home, /import_device/)
+  assert.match(home, /import_link/)
+  assert.match(home, /setTimeout\(\(\) => {[\s\S]*enterSelect\(book\.id\)/)
+  assert.doesNotMatch(home, /<TextField/)
+  assert.doesNotMatch(home, /router\.push\('\/_'\)/)
+  assert.doesNotMatch(home, /beforePopState/)
+
+  assert.match(navigation, /window\.addEventListener\('popstate'/)
+  assert.match(navigation, /restoreReader\(target\.snapshot\)/)
+  assert.match(navigation, /current\.layer\.close\(\)/)
+  assert.match(navigation, /saveReaderEntry\('replace'\)/)
+  assert.match(layout, /navigateReader\(\(\) =>/)
+  assert.match(layout, /if \(!readMode\) return null/)
+  assert.match(settings, /goBack\(\(\) => reader\.clear\(\)\)/)
 })
 
 test('the reader remains installable as a standalone mobile app', async () => {
