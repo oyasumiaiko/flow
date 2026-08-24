@@ -79,13 +79,14 @@ class Locations {
   }
 
   process(section) {
+    var wasLoaded = !!section.contents
     return section.load(this.request).then(
       function (contents) {
         var completed = new defer()
         var locations = this.parse(contents, section.cfiBase)
         this._locations = this._locations.concat(locations)
 
-        section.unload()
+        if (!wasLoaded) section.unload()
 
         this.processingTimeout = setTimeout(
           () => completed.resolve(locations),
@@ -234,6 +235,7 @@ class Locations {
       return Promise.resolve()
     }
 
+    var wasLoaded = !!section.contents
     return section.load(this.request).then(
       function (contents) {
         var completed = new defer()
@@ -245,7 +247,7 @@ class Locations {
             : locations,
         )
 
-        section.unload()
+        if (!wasLoaded) section.unload()
 
         this.processingTimeout = setTimeout(
           () => completed.resolve(locations),
