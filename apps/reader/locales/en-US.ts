@@ -92,6 +92,7 @@ export default {
   'settings.install.description':
     'Launch Flow from your home screen in an immersive fullscreen or standalone window.',
   'settings.install.action': 'Install Flow',
+  'reader_menu.open': 'Open reading menu',
   'settings.install.installed': 'Flow is running as an installed app.',
   'settings.install.browser_menu':
     'If the install button is not ready, refresh once and choose “Install app” from the Chrome menu.',
