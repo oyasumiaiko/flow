@@ -1,6 +1,6 @@
 import { useEventListener } from '@literal-ui/hooks'
 import clsx from 'clsx'
-import { useSetAtom } from 'jotai'
+import { useAtom } from 'jotai'
 import React, {
   CSSProperties,
   ComponentProps,
@@ -36,6 +36,7 @@ import {
   useTypography,
 } from '../hooks'
 import { BookTab, reader, useReaderSnapshot } from '../models'
+import { goBack, openTransientLayer } from '../navigation'
 import { isTouchScreen } from '../platform'
 import { updateCustomStyle } from '../styles'
 
@@ -310,7 +311,17 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
 
   useSync(tab)
 
-  const setNavbar = useSetAtom(navbarState)
+  const [navbarVisible, setNavbar] = useAtom(navbarState)
+  const toggleNavbar = () => {
+    if (navbarVisible) {
+      goBack(() => setNavbar(false))
+    } else {
+      openTransientLayer(
+        () => setNavbar(true),
+        () => setNavbar(false),
+      )
+    }
+  }
   const autoHideCursorInReading = !!settings.autoHideCursorInReading
   const shouldAutoHideCursor = autoHideCursorInReading && mobile === false
 
@@ -445,7 +456,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       }
 
       if (isScrolled) {
-        if (mobile) setNavbar((visible) => !visible)
+        if (mobile) toggleNavbar()
         return
       }
 
@@ -459,7 +470,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       } else if (w - x < side) {
         tab.next()
       } else if (mobile) {
-        setNavbar((a) => !a)
+        toggleNavbar()
       }
     }
   })
