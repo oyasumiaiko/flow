@@ -183,6 +183,7 @@ const readerMetaOptions: ReaderMetaSlot[] = [
   'bookTitle',
   'chapterPath',
   'pageNumber',
+  'globalPage',
   'href',
   'progress',
   'time',
