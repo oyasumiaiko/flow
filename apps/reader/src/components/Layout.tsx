@@ -7,6 +7,7 @@ import { IconType } from 'react-icons'
 import {
   MdFormatUnderlined,
   MdOutlineImage,
+  MdMoreHoriz,
   MdSearch,
   MdToc,
   MdTimeline,
@@ -185,10 +186,12 @@ function ViewActionBar({ className, env }: EnvActionBarProps) {
   )
 }
 
-function PageActionBar({ env }: EnvActionBarProps) {
+function PageActionBar({ className, env }: EnvActionBarProps) {
   const mobile = useMobile()
   const [action, setAction] = useState('Home')
   const t = useTranslation()
+  const r = useReaderSnapshot()
+  const readMode = r.focusedTab?.isBook
 
   interface IPageAction extends IAction {
     Component?: React.FC
@@ -215,14 +218,14 @@ function PageActionBar({ env }: EnvActionBarProps) {
   )
 
   return (
-    <ActionBar>
+    <ActionBar className={className}>
       {pageActions
         .filter((a) => a.env & env)
         .map(({ name, title, Icon, Component, disabled }, i) => (
           <Action
             title={t(`${title}.title`)}
             Icon={Icon}
-            active={mobile ? action === name : undefined}
+            active={mobile && !readMode ? action === name : undefined}
             disabled={disabled}
             onClick={() => {
               Component ? reader.addTab(Component) : reader.clear()
@@ -239,6 +242,7 @@ function NavigationBar() {
   const r = useReaderSnapshot()
   const readMode = r.focusedTab?.isBook
   const [visible, setVisible] = useAtom(navbarState)
+  const t = useTranslation('reader_menu')
 
   return (
     <>
@@ -248,12 +252,28 @@ function NavigationBar() {
           onClick={() => setVisible(false)}
         />
       )}
-      <div className="NavigationBar bg-surface border-surface-variant fixed inset-x-0 bottom-0 z-10 border-t">
+      {readMode && !visible && (
+        <button
+          className="bg-surface/90 text-outline border-outline-variant fixed left-1/2 z-20 flex h-7 w-14 -translate-x-1/2 items-center justify-center rounded-t border border-b-0 shadow"
+          style={{ bottom: 'env(safe-area-inset-bottom)' }}
+          title={t('open')}
+          aria-label={t('open')}
+          onClick={() => setVisible(true)}
+        >
+          <MdMoreHoriz size={28} />
+        </button>
+      )}
+      <div
+        className={clsx(
+          'NavigationBar bg-surface border-surface-variant fixed inset-x-0 bottom-0 z-10 border-t',
+          readMode && !visible && 'hidden',
+        )}
+      >
         {readMode ? (
-          <ViewActionBar
-            env={Env.Mobile}
-            className={clsx(visible || 'hidden')}
-          />
+          <div className="flex">
+            <PageActionBar env={Env.Mobile} className="flex-1" />
+            <ViewActionBar env={Env.Mobile} className="flex-[2.5]" />
+          </div>
         ) : (
           <PageActionBar env={Env.Mobile} />
         )}
