@@ -56,6 +56,7 @@ export interface IMatch extends INode {
 export interface ISection extends Section {
   length: number
   images: string[]
+  estimatedLength?: number
   navitem?: INavItem
 }
 
@@ -78,6 +79,7 @@ class BaseTab {
 
 // https://github.com/pmndrs/valtio/blob/92f3311f7f1a9fe2a22096cd30f9174b860488ed/src/vanilla.ts#L6
 type AsRef = { $$valtioRef: true }
+const globalLocationJobs = new WeakMap<object, Promise<void>>()
 
 export class BookTab extends BaseTab {
   epub?: Book
@@ -91,6 +93,8 @@ export class BookTab extends BaseTab {
   activeResultID?: string
   rendered = false
   readingMode: ReadingMode = 'paginated'
+  globalLocationTotal = 0
+  globalLocations?: string[]
   private renderGeneration = 0
 
   get container() {
@@ -228,7 +232,46 @@ export class BookTab extends BaseTab {
   }
 
   get totalLength() {
-    return this.sections?.reduce((acc, s) => acc + s.length, 0) ?? 0
+    return (
+      this.sections?.reduce((acc, s) => acc + this.sectionWeight(s), 0) ?? 0
+    )
+  }
+
+  sectionWeight(section: ISection) {
+    return section.estimatedLength || section.length || 1
+  }
+
+  ensureGlobalLocations() {
+    const epub = this.epub
+    if (!epub) return Promise.resolve()
+
+    if (this.globalLocations?.length) {
+      if (!epub.locations.length()) epub.locations.load(this.globalLocations)
+      this.globalLocationTotal = Math.max(this.globalLocations.length - 1, 0)
+      return this.rendition?.reportLocation() ?? Promise.resolve()
+    }
+    const existingJob = globalLocationJobs.get(this)
+    if (existingJob) return existingJob
+
+    const generation = this.renderGeneration
+    ;(epub.locations as any).pause = 1
+    const job = epub.locations
+      .generate(1500)
+      .then((locations) => {
+        if (generation !== this.renderGeneration || epub !== this.epub) return
+        this.globalLocations = ref([...locations])
+        this.globalLocationTotal = Math.max(locations.length - 1, 0)
+        return this.rendition?.reportLocation()
+      })
+      .catch((error) => {
+        console.error('Failed to build global EPUB locations', error)
+      })
+      .finally(() => {
+        globalLocationJobs.delete(this)
+      })
+    globalLocationJobs.set(this, job)
+
+    return job
   }
 
   toggle(id: string) {
@@ -268,7 +311,11 @@ export class BookTab extends BaseTab {
   }
 
   get view() {
-    return this.rendition?.manager?.views._views[0]
+    const manager = this.rendition?.manager
+    return (
+      manager?.current?.() ??
+      manager?.views?.displayed?.().find((view: any) => view.contents)
+    )
   }
 
   getNavPath(navItem = this.currentNavItem) {
@@ -313,7 +360,7 @@ export class BookTab extends BaseTab {
   search(keyword = this.keyword) {
     // avoid blocking input
     return new Promise<IMatch[] | undefined>((resolve) => {
-      requestIdleCallback(() => {
+      requestIdleCallback(async () => {
         if (!keyword) {
           resolve(undefined)
           return
@@ -321,10 +368,19 @@ export class BookTab extends BaseTab {
 
         const results: IMatch[] = []
 
-        this.sections?.forEach((s) => {
-          const result = this.searchInSection(keyword, s)
-          if (result) results.push(result)
-        })
+        for (const section of this.sections ?? []) {
+          const wasLoaded = !!section.document
+          try {
+            if (!wasLoaded) await section.load(this.epub?.load.bind(this.epub))
+            this.indexSection(section)
+            const result = this.searchInSection(keyword, section)
+            if (result) results.push(result)
+          } catch (error) {
+            console.error('Failed to search EPUB section', error)
+          } finally {
+            if (!wasLoaded) section.unload()
+          }
+        }
 
         resolve(results)
       })
@@ -364,28 +420,29 @@ export class BookTab extends BaseTab {
     console.log(this.epub)
     this.epub.loaded.spine.then((spine: any) => {
       const sections = spine.spineItems as ISection[]
-      // https://github.com/futurepress/epub.js/issues/887#issuecomment-700736486
-      const promises = sections.map((s) =>
-        s.load(this.epub?.load.bind(this.epub)),
-      )
-
-      Promise.all(promises).then(() => {
-        sections.forEach((s) => {
-          s.length = s.document.body.textContent?.length ?? 0
-          s.images = [...s.document.querySelectorAll('img')].map((el) => el.src)
-          this.epub!.loaded.navigation.then(() => {
-            s.navitem = this.mapSectionToNavItem(s.href)
-          })
+      sections.forEach((section) => {
+        section.length = 0
+        section.images = []
+        section.estimatedLength = this.epub?.archive?.getSize(section.url) ?? 0
+        this.epub!.loaded.navigation.then(() => {
+          section.navitem = this.mapSectionToNavItem(section.href)
         })
-        this.sections = ref(sections)
       })
+      this.sections = ref(sections)
     })
+    if (this.globalLocations?.length) {
+      this.epub.locations.load(this.globalLocations)
+      this.globalLocationTotal = Math.max(this.globalLocations.length - 1, 0)
+    }
     this.rendition = ref(
       this.epub.renderTo(el, {
         width: '100%',
         height: '100%',
-        manager: readingMode === 'scrolled' ? 'continuous' : 'default',
-        flow: readingMode === 'scrolled' ? 'scrolled-continuous' : 'paginated',
+        // Scrolled reading deliberately renders one spine section at a time.
+        // EPUB storage boundaries therefore never become placeholders inside a
+        // single document, and very long books keep constant rendering cost.
+        manager: 'default',
+        flow: readingMode === 'scrolled' ? 'scrolled' : 'paginated',
         spread: readingMode === 'scrolled' ? RenditionSpread.None : undefined,
         allowScriptedContent: true,
       }),
@@ -406,17 +463,24 @@ export class BookTab extends BaseTab {
         timestamp: Date.now(),
       })
 
+      const start = loc.start
+      const currentSection =
+        this.sections?.find((section) =>
+          compareHref(section.href, start.href),
+        ) ?? (this.epub as any)?.spine?.get(start.href)
+      if (currentSection) this.section = ref(currentSection)
+
       // calculate percentage
       if (this.sections) {
-        const start = loc.start
         const i = this.sections.findIndex((s) => s.href === start.href)
+        if (i < 0) return
         const previousSectionsLength = this.sections
           .slice(0, i)
-          .reduce((acc, s) => acc + s.length, 0)
+          .reduce((acc, s) => acc + this.sectionWeight(s), 0)
         const previousSectionsPercentage =
           previousSectionsLength / this.totalLength
         const currentSectionPercentage =
-          this.sections[i]!.length / this.totalLength
+          this.sectionWeight(this.sections[i]!) / this.totalLength
         const displayedPercentage = start.displayed.page / start.displayed.total
 
         const percentage =
@@ -438,7 +502,10 @@ export class BookTab extends BaseTab {
     })
     this.rendition.on('rendered', (section: ISection, view: any) => {
       console.log('rendered', [section, view])
-      this.section = ref(section)
+      this.indexSection(section)
+      if (!this.currentHref || compareHref(section.href, this.currentHref)) {
+        this.section = ref(section)
+      }
       this.iframe = ref(view.window as Window) as unknown as Window & AsRef
     })
     this.rendition.on('selected', (...args: any[]) => {
@@ -447,6 +514,17 @@ export class BookTab extends BaseTab {
     this.rendition.on('removed', (...args: any[]) => {
       console.log('removed', args)
     })
+  }
+
+  private indexSection(section: ISection) {
+    const doc = section.document
+    if (!doc) return
+    section.length = doc.body?.textContent?.length ?? 0
+    section.images = [...doc.querySelectorAll('img')].map(
+      (element) => element.src,
+    )
+    section.estimatedLength ||= doc.documentElement?.outerHTML.length ?? 0
+    section.navitem ||= this.mapSectionToNavItem(section.href)
   }
 
   constructor(public book: BookRecord) {

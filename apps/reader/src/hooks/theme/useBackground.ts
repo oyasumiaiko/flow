@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react'
+import { hexFromArgb } from '@material/material-color-utilities'
 
 import { compositeColors } from '@flow/reader/color'
 import { useSettings } from '@flow/reader/state'
@@ -50,11 +51,12 @@ export function useBackground() {
     const { surface, primary } = rawTheme.schemes.light
 
     const color = dark
-      ? '#24292e'
+      ? hexFromArgb(rawTheme.schemes.dark.background)
       : level < 0
       ? '#fff'
       : compositeColors(surface, primary, surfaceMap[level]!)
 
+    document.documentElement.style.setProperty('--flow-background', color)
     document.querySelector('#theme-color')?.setAttribute('content', color)
   }, [dark, level, rawTheme])
 

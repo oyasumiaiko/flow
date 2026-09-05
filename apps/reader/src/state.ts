@@ -9,8 +9,11 @@ export type ReaderMetaSlot =
   | 'bookTitle'
   | 'chapterPath'
   | 'pageNumber'
+  | 'globalPage'
   | 'href'
   | 'progress'
+  | 'time'
+  | 'battery'
 
 type ReaderMetaSettings = {
   readerHeaderLeft?: ReaderMetaSlot

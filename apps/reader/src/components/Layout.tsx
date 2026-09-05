@@ -2,11 +2,11 @@ import { Overlay } from '@literal-ui/core'
 import clsx from 'clsx'
 import { useAtom } from 'jotai'
 import { ComponentProps, useEffect, useState } from 'react'
-import { useMemo } from 'react'
 import { IconType } from 'react-icons'
 import {
   MdFormatUnderlined,
   MdOutlineImage,
+  MdMoreHoriz,
   MdSearch,
   MdToc,
   MdTimeline,
@@ -26,6 +26,7 @@ import {
   useTranslation,
 } from '../hooks'
 import { reader, useReaderSnapshot } from '../models'
+import { goBack, navigateReader, openTransientLayer } from '../navigation'
 import { navbarState } from '../state'
 import { activeClass } from '../styles'
 import { retryPendingCloudUpdates } from '../sync'
@@ -39,8 +40,6 @@ import { ThemeView } from './viewlets/ThemeView'
 import { TimelineView } from './viewlets/TimelineView'
 import { TocView } from './viewlets/TocView'
 import { TypographyView } from './viewlets/TypographyView'
-import { WebStatusBar } from './WebStatusBar'
-
 export const Layout: React.FC<React.PropsWithChildren> = ({ children }) => {
   useColorScheme()
 
@@ -55,16 +54,13 @@ export const Layout: React.FC<React.PropsWithChildren> = ({ children }) => {
   }, [mobile, setAction])
 
   return (
-    <div id="layout" className="flex select-none flex-col">
-      <WebStatusBar />
-      <div className="min-h-0 flex-1">
-        <SplitView>
-          {mobile === false && <ActivityBar />}
-          {mobile === true && <NavigationBar />}
-          {ready && <SideBar />}
-          {ready && <Reader>{children}</Reader>}
-        </SplitView>
-      </div>
+    <div id="layout" className="select-none">
+      <SplitView>
+        {mobile === false && <ActivityBar />}
+        {mobile === true && <NavigationBar />}
+        {ready && <SideBar />}
+        {ready && <Reader>{children}</Reader>}
+      </SplitView>
       <CloudSyncError />
     </div>
   )
@@ -181,7 +177,16 @@ function ViewActionBar({ className, env }: EnvActionBarProps) {
               title={t(`${title}.title`)}
               Icon={Icon}
               active={active}
-              onClick={() => setAction(active ? undefined : name)}
+              onClick={() => {
+                if (active) {
+                  goBack(() => setAction(undefined))
+                } else {
+                  openTransientLayer(
+                    () => setAction(name),
+                    () => setAction(undefined),
+                  )
+                }
+              }}
               key={name}
             />
           )
@@ -190,48 +195,47 @@ function ViewActionBar({ className, env }: EnvActionBarProps) {
   )
 }
 
-function PageActionBar({ env }: EnvActionBarProps) {
+function PageActionBar({ className, env }: EnvActionBarProps) {
   const mobile = useMobile()
-  const [action, setAction] = useState('Home')
   const t = useTranslation()
+  const r = useReaderSnapshot()
+  const readMode = r.focusedTab?.isBook
 
   interface IPageAction extends IAction {
     Component?: React.FC
     disabled?: boolean
   }
 
-  const pageActions: IPageAction[] = useMemo(
-    () => [
-      {
-        name: 'home',
-        title: 'home',
-        Icon: RiHome6Line,
-        env: Env.Mobile,
-      },
-      {
-        name: 'settings',
-        title: 'settings',
-        Icon: RiSettings5Line,
-        Component: Settings,
-        env: Env.Desktop | Env.Mobile,
-      },
-    ],
-    [],
-  )
+  const pageActions: IPageAction[] = [
+    {
+      name: 'home',
+      title: 'home',
+      Icon: RiHome6Line,
+      env: Env.Mobile,
+    },
+    {
+      name: 'settings',
+      title: 'settings',
+      Icon: RiSettings5Line,
+      Component: Settings,
+      env: Env.Desktop | Env.Mobile,
+    },
+  ]
 
   return (
-    <ActionBar>
+    <ActionBar className={className}>
       {pageActions
         .filter((a) => a.env & env)
         .map(({ name, title, Icon, Component, disabled }, i) => (
           <Action
             title={t(`${title}.title`)}
             Icon={Icon}
-            active={mobile ? action === name : undefined}
+            active={mobile && !readMode ? name === 'home' : undefined}
             disabled={disabled}
             onClick={() => {
-              Component ? reader.addTab(Component) : reader.clear()
-              setAction(name)
+              navigateReader(() => {
+                Component ? reader.addTab(Component) : reader.clear()
+              })
             }}
             key={i}
           />
@@ -244,24 +248,41 @@ function NavigationBar() {
   const r = useReaderSnapshot()
   const readMode = r.focusedTab?.isBook
   const [visible, setVisible] = useAtom(navbarState)
+  const t = useTranslation('reader_menu')
+
+  if (!readMode) return null
+
+  const openMenu = () =>
+    openTransientLayer(
+      () => setVisible(true),
+      () => setVisible(false),
+    )
+  const closeMenu = () => goBack(() => setVisible(false))
 
   return (
     <>
-      {visible && (
-        <Overlay
-          className="!bg-transparent"
-          onClick={() => setVisible(false)}
-        />
+      {visible && <Overlay className="!bg-transparent" onClick={closeMenu} />}
+      {readMode && !visible && (
+        <button
+          className="bg-surface/90 text-outline border-outline-variant fixed left-1/2 z-20 flex h-7 w-14 -translate-x-1/2 items-center justify-center rounded-t border border-b-0 shadow"
+          style={{ bottom: 'env(safe-area-inset-bottom)' }}
+          title={t('open')}
+          aria-label={t('open')}
+          onClick={openMenu}
+        >
+          <MdMoreHoriz size={28} />
+        </button>
       )}
-      <div className="NavigationBar bg-surface border-surface-variant fixed inset-x-0 bottom-0 z-10 border-t">
-        {readMode ? (
-          <ViewActionBar
-            env={Env.Mobile}
-            className={clsx(visible || 'hidden')}
-          />
-        ) : (
-          <PageActionBar env={Env.Mobile} />
+      <div
+        className={clsx(
+          'NavigationBar bg-surface border-surface-variant fixed inset-x-0 bottom-0 z-10 border-t',
+          readMode && !visible && 'hidden',
         )}
+      >
+        <div className="flex">
+          <PageActionBar env={Env.Mobile} className="flex-1" />
+          <ViewActionBar env={Env.Mobile} className="flex-[2.5]" />
+        </div>
       </div>
     </>
   )
@@ -319,7 +340,9 @@ const SideBar: React.FC = () => {
 
   return (
     <>
-      {action && mobile && <Overlay onClick={() => setAction(undefined)} />}
+      {action && mobile && (
+        <Overlay onClick={() => goBack(() => setAction(undefined))} />
+      )}
       <div
         className={clsx(
           'SideBar bg-surface flex flex-col',
@@ -346,17 +369,7 @@ const Reader: React.FC<ReaderProps> = ({ className, ...props }) => {
   useSplitViewItem(Reader)
   const [bg] = useBackground()
 
-  const r = useReaderSnapshot()
-  const readMode = r.focusedTab?.isBook
-
   return (
-    <div
-      className={clsx(
-        'Reader flex-1 overflow-hidden',
-        readMode || 'mb-12 sm:mb-0',
-        bg,
-      )}
-      {...props}
-    />
+    <div className={clsx('Reader flex-1 overflow-hidden', bg)} {...props} />
   )
 }

@@ -99,10 +99,10 @@ function PreventFlash() {
     <>
       <style>{`
         .bg-default, .hover\\:bg-default:hover {
-          background: ${background.light};
+          background: var(--flow-background, ${background.light});
         }
         .dark.bg-default, .dark .bg-default, .dark .hover\\:bg-default:hover {
-          background: ${background.dark};
+          background: var(--flow-background, ${background.dark});
         }
       `}</style>
       <script

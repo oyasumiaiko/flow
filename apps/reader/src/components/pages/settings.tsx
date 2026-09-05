@@ -28,6 +28,8 @@ import {
   useSettings,
 } from '@flow/reader/state'
 import { retryPendingCloudUpdates } from '@flow/reader/sync'
+import { reader } from '@flow/reader/models'
+import { goBack, syncCurrentHistoryEntry } from '@flow/reader/navigation'
 
 import { Button } from '../Button'
 import { Checkbox, Select } from '../Form'
@@ -36,11 +38,15 @@ import { Page } from '../Page'
 export const Settings: React.FC = () => {
   const { scheme, setScheme } = useColorScheme()
   const [settings, setSettings] = useSettings()
-  const { asPath, push } = useRouter()
+  const { asPath, replace } = useRouter()
   const t = useTranslation('settings')
 
   return (
-    <Page headline={t('title')}>
+    <Page
+      headline={t('title')}
+      backLabel={t('back')}
+      onBack={() => goBack(() => reader.clear())}
+    >
       <div className="space-y-6">
         <Item title={t('language')}>
           <Select
@@ -48,7 +54,9 @@ export const Settings: React.FC = () => {
             onChange={(e) => {
               const locale = e.target.value as ReaderSettings['locale']
               setSettings((previous) => ({ ...previous, locale }))
-              push(asPath, undefined, { locale })
+              void replace(asPath, undefined, { locale }).then(() =>
+                syncCurrentHistoryEntry(),
+              )
             }}
           >
             <option value="en-US">English</option>
@@ -114,7 +122,7 @@ const StatusBarMode: React.FC = () => {
     if (!(await exitImmersiveMode())) setMessage(t('manifest_fullscreen'))
   }
 
-  const useWebBar = async () => {
+  const useImmersiveMode = async () => {
     setMessage(undefined)
     try {
       if (!(await enterImmersiveMode())) setMessage(t('unsupported'))
@@ -136,7 +144,7 @@ const StatusBarMode: React.FC = () => {
         <Button
           variant={immersive ? 'primary' : 'secondary'}
           disabled={!isRuntimeFullscreenSupported() && !immersive}
-          onClick={() => void useWebBar()}
+          onClick={() => void useImmersiveMode()}
         >
           {t('immersive')}
         </Button>
@@ -175,8 +183,11 @@ const readerMetaOptions: ReaderMetaSlot[] = [
   'bookTitle',
   'chapterPath',
   'pageNumber',
+  'globalPage',
   'href',
   'progress',
+  'time',
+  'battery',
 ]
 
 interface ReaderMetaConfigProps {

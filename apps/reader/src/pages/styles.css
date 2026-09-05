@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --flow-background: #fff;
+}
+
+:root.dark {
+  --flow-background: #24292e;
+}
+
+html::backdrop {
+  background-color: var(--flow-background);
+}
+
 html,
 body,
 #__next,
@@ -72,6 +84,11 @@ input[type='color']::-webkit-color-swatch {
 
 .NavigationBar {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.LibraryHeader,
+.SettingsHeader {
+  padding-top: env(safe-area-inset-top);
 }
 
 .scroll-h {

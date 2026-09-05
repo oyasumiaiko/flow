@@ -13,6 +13,7 @@ export { default as EpubCFI } from './epubcfi'
 export { Rendition, Location } from './rendition'
 export { default as Contents } from './contents'
 export { default as Layout } from './layout'
+export { default as StableViewManager } from './managers/stable'
 export { NavItem } from './navigation'
 
 declare namespace ePub {}

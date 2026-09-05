@@ -1,5 +1,9 @@
 export default {
   'home.title': 'ホーム',
+  'home.library': 'ライブラリ',
+  'home.books': '冊',
+  'home.menu': 'ライブラリメニュー',
+  'home.settings': '設定',
   'home.share': '共有',
   'home.download': 'ダウンロード',
   'home.download_sample_book': 'サンプルブックをダウンロード',
@@ -8,6 +12,13 @@ export default {
   'home.select_all': 'すべて選択',
   'home.deselect_all': 'すべて選択解除',
   'home.import': 'インポート',
+  'home.import_device': '端末から EPUB をインポート',
+  'home.import_link': 'リンクからインポート',
+  'home.import_first_book': '最初の本をインポート',
+  'home.empty_title': 'ライブラリは空です',
+  'home.empty_description':
+    '右上のプラスボタンから端末またはリンクの EPUB を追加できます。',
+  'home.selected': '冊を選択中',
   'home.delete': '削除',
   'home.cloud_load_failed': 'Sites ライブラリを読み込めません',
   'home.retry': '再試行',
@@ -31,9 +42,9 @@ export default {
   'typography.scope.book': '本',
   'typography.scope.global': 'グローバル',
   'typography.reading_mode': '読書モード',
-  'typography.reading_mode.auto': '端末に合わせる（モバイルは縦スクロール）',
+  'typography.reading_mode.auto': '端末に合わせる（モバイルは章内スクロール）',
   'typography.reading_mode.paginated': 'ページ送り',
-  'typography.reading_mode.scrolled': '連続縦スクロール',
+  'typography.reading_mode.scrolled': '章内縦スクロール',
   'typography.page_view': 'ページ表示',
   'typography.page_view.single_page': '片ページ',
   'typography.page_view.double_page': '見開きページ',
@@ -53,16 +64,17 @@ export default {
   'theme.background_color': '背景色',
 
   'settings.title': '設定',
+  'settings.back': '前の画面に戻る',
   'settings.language': '言語',
   'settings.color_scheme': '配色',
   'settings.color_scheme.system': 'システム',
   'settings.color_scheme.light': 'ライト',
   'settings.color_scheme.dark': 'ダーク',
-  'settings.status_bar.title': 'ステータスバーモード',
+  'settings.status_bar.title': '画面表示モード',
   'settings.status_bar.description':
-    'システムモードは Android のステータスバーを表示します。没入モードではシステムバーを隠し、Flow が時刻とバッテリー残量を表示します。',
-  'settings.status_bar.system': 'システムステータスバー',
-  'settings.status_bar.immersive': 'Web 没入ステータスバー',
+    'システムモードは Android のステータスバーを表示します。没入モードはシステムバーを隠してコンテンツを画面全体に表示します。時刻とバッテリーは下のヘッダー・フッターで選べます。',
+  'settings.status_bar.system': 'システムモード',
+  'settings.status_bar.immersive': '没入モード',
   'settings.status_bar.unsupported':
     'このブラウザーは Web フルスクリーンに対応していません。',
   'settings.status_bar.manifest_fullscreen':
@@ -75,9 +87,12 @@ export default {
   'settings.reader_meta.option.none': '非表示',
   'settings.reader_meta.option.bookTitle': '書籍タイトル',
   'settings.reader_meta.option.chapterPath': '章のパス',
-  'settings.reader_meta.option.pageNumber': 'ページ番号',
+  'settings.reader_meta.option.pageNumber': '章ページと章名',
+  'settings.reader_meta.option.globalPage': '全書ページ',
   'settings.reader_meta.option.href': '現在のセクション',
   'settings.reader_meta.option.progress': '読書進捗',
+  'settings.reader_meta.option.time': '時刻',
+  'settings.reader_meta.option.battery': 'バッテリー',
   'settings.synchronization.title': '同期',
   'settings.synchronization.sites_description':
     '書籍、読書データ、設定は Sites で同期され、ChatGPT アカウントごとに分離されます。',
@@ -89,6 +104,7 @@ export default {
   'settings.install.description':
     'ホーム画面から起動し、フルスクリーンまたは独立ウィンドウで読書できます。',
   'settings.install.action': 'Flow をインストール',
+  'reader_menu.open': '読書メニューを開く',
   'settings.install.installed':
     'Flow はインストール済みアプリとして実行中です。',
   'settings.install.browser_menu':

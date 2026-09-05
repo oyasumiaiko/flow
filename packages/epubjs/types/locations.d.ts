@@ -19,7 +19,7 @@ export default class Locations {
 
   cfiFromPercentage(percentage: number): string
 
-  load(locations: string): Array<string>
+  load(locations: string | Array<string>): Array<string>
 
   save(): string
 

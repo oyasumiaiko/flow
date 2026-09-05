@@ -16,6 +16,7 @@ import {
   reader,
   useReaderSnapshot,
 } from '@flow/reader/models'
+import { navigateReader } from '@flow/reader/navigation'
 
 import { Row } from '../Row'
 import { PaneViewProps, PaneView, Pane } from '../base'
@@ -41,7 +42,7 @@ const LibraryPane: React.FC = () => {
           className="relative w-full truncate py-1 pl-5 pr-3 text-left"
           title={book.name}
           draggable
-          onClick={() => reader.addTab(book)}
+          onClick={() => navigateReader(() => reader.addTab(book))}
           onDragStart={(e) => {
             e.dataTransfer.setData('text/plain', book.id)
           }}

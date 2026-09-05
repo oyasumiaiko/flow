@@ -1,6 +1,6 @@
 import { useEventListener } from '@literal-ui/hooks'
 import clsx from 'clsx'
-import { useSetAtom } from 'jotai'
+import { useAtom } from 'jotai'
 import React, {
   CSSProperties,
   ComponentProps,
@@ -36,7 +36,14 @@ import {
   useTypography,
 } from '../hooks'
 import { BookTab, reader, useReaderSnapshot } from '../models'
+import { goBack, openTransientLayer } from '../navigation'
 import { isTouchScreen } from '../platform'
+import {
+  chapterTurnFromBoundarySwipe,
+  chapterTurnFromBoundaryWheel,
+  chapterTurnFromTap,
+  getScrollBoundary,
+} from '../reading-navigation'
 import { updateCustomStyle } from '../styles'
 
 import {
@@ -69,6 +76,30 @@ function handleKeyDown(tab?: BookTab) {
       // ignore `rendition is undefined` error
     }
   }
+}
+
+function useRenditionEvent(
+  rendition:
+    | {
+        on: (event: string, listener: (...args: any[]) => void) => unknown
+        off: (event: string, listener: (...args: any[]) => void) => unknown
+      }
+    | undefined,
+  event: string,
+  listener: (...args: any[]) => void,
+) {
+  const listenerRef = useRef(listener)
+  listenerRef.current = listener
+
+  useEffect(() => {
+    if (!rendition) return
+
+    const handleEvent = (...args: any[]) => listenerRef.current(...args)
+    rendition.on(event, handleEvent)
+    return () => {
+      rendition.off(event, handleEvent)
+    }
+  }, [event, rendition])
 }
 
 function parseViewportAspectRatio(viewport?: string) {
@@ -239,6 +270,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const renderRef = useRef<HTMLDivElement>(null)
   const cursorHideTimerRef = useRef<number | undefined>(undefined)
+  const lastChapterTurnRef = useRef(0)
   const prevSize = useRef({ width: 0, height: 0 })
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const [cursorHidden, setCursorHidden] = useState(false)
@@ -247,11 +279,22 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
   const { dark } = useColorScheme()
   const [background] = useBackground()
   const mobile = useMobile()
+  const deviceMeta = useReaderDeviceMeta()
   const readingMode =
     typography.readingMode ?? (mobile ? 'scrolled' : 'paginated')
   const isScrolled = readingMode === 'scrolled'
 
   const { iframe, rendition, rendered, container } = useSnapshot(tab)
+
+  const turnChapter = useCallback(
+    (direction: -1 | 1) => {
+      const now = Date.now()
+      if (now - lastChapterTurnRef.current < 700) return
+      lastChapterTurnRef.current = now
+      direction < 0 ? tab.prev() : tab.next()
+    },
+    [tab],
+  )
 
   useEffect(() => {
     const el = viewportRef.current
@@ -285,7 +328,17 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
 
   useSync(tab)
 
-  const setNavbar = useSetAtom(navbarState)
+  const [navbarVisible, setNavbar] = useAtom(navbarState)
+  const toggleNavbar = () => {
+    if (navbarVisible) {
+      goBack(() => setNavbar(false))
+    } else {
+      openTransientLayer(
+        () => setNavbar(true),
+        () => setNavbar(false),
+      )
+    }
+  }
   const autoHideCursorInReading = !!settings.autoHideCursorInReading
   const shouldAutoHideCursor = autoHideCursorInReading && mobile === false
 
@@ -390,10 +443,10 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     setDragEvent(e)
   })
 
-  useEventListener(iframe, 'mousedown', onMouseDown)
-  useEventListener(iframe, 'mousemove', handleReadingAreaMouseMove)
+  useRenditionEvent(rendition, 'mousedown', onMouseDown)
+  useRenditionEvent(rendition, 'mousemove', handleReadingAreaMouseMove)
 
-  useEventListener(iframe, 'click', (e) => {
+  useRenditionEvent(rendition, 'click', (e) => {
     // https://developer.chrome.com/blog/tap-to-search
     e.preventDefault()
 
@@ -419,6 +472,19 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
         return
       }
 
+      if (isScrolled) {
+        const activeWindow = e.target?.ownerDocument?.defaultView
+        const frame = activeWindow?.frameElement as HTMLElement | null
+        const frameTop = frame?.getBoundingClientRect().top ?? 0
+        const viewportTop = container.getBoundingClientRect().top
+        const viewportY = frameTop + e.clientY - viewportTop
+        const turn = chapterTurnFromTap(viewportY, container.clientHeight)
+
+        if (turn) turnChapter(turn)
+        else if (mobile) toggleNavbar()
+        return
+      }
+
       const w = container.clientWidth
       const x = e.clientX % w
       const threshold = 0.3
@@ -429,7 +495,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
       } else if (w - x < side) {
         tab.next()
       } else if (mobile) {
-        setNavbar((a) => !a)
+        toggleNavbar()
       }
     }
   })
@@ -445,56 +511,84 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
     [tab],
   )
 
-  useEventListener(iframe, 'wheel', (e) => {
-    if (isScrolled) return
+  useRenditionEvent(rendition, 'wheel', (e) => {
+    if (isScrolled) {
+      if (!container) return
+      const turn = chapterTurnFromBoundaryWheel(
+        e.deltaY,
+        getScrollBoundary(container),
+      )
+      if (turn) {
+        if (e.cancelable) e.preventDefault()
+        turnChapter(turn)
+      }
+      return
+    }
     handleWheelTurnPage(e.deltaY)
   })
 
-  useEventListener(iframe, 'keydown', handleKeyDown(tab))
+  useRenditionEvent(rendition, 'keydown', handleKeyDown(tab))
 
-  useEventListener(iframe, 'touchstart', (e) => {
-    const x0 = e.targetTouches[0]?.clientX ?? 0
-    const y0 = e.targetTouches[0]?.clientY ?? 0
-    const t0 = Date.now()
-
-    if (!iframe) return
-
-    // When selecting text with long tap, `touchend` is not fired,
-    // so instead of use `addEventlistener`, we should use `on*`
-    // to remove the previous listener.
-    const activeWindow = iframe as unknown as Window
-    activeWindow.ontouchend = function handleTouchEnd(e: TouchEvent) {
-      activeWindow.ontouchend = null
-      const selection = activeWindow.getSelection()
-      if (hasSelection(selection)) return
-
-      const x1 = e.changedTouches[0]?.clientX ?? 0
-      const y1 = e.changedTouches[0]?.clientY ?? 0
-      const t1 = Date.now()
-
-      const deltaX = x1 - x0
-      const deltaY = y1 - y0
-      const deltaT = t1 - t0
-
-      const absX = Math.abs(deltaX)
-      const absY = Math.abs(deltaY)
-
-      if (absX < 10) return
-
-      if (absY / absX > 2) {
-        if (deltaT > 100 || absX < 30) {
-          return
-        }
+  const touchStartRef = useRef<
+    | {
+        x: number
+        y: number
+        time: number
+        activeWindow?: Window
+        boundary?: ReturnType<typeof getScrollBoundary>
       }
+    | undefined
+  >(undefined)
 
-      if (deltaX > 0) {
-        tab.prev()
-      }
-
-      if (deltaX < 0) {
-        tab.next()
-      }
+  useRenditionEvent(rendition, 'touchstart', (e, contents) => {
+    touchStartRef.current = {
+      x: e.targetTouches[0]?.clientX ?? 0,
+      y: e.targetTouches[0]?.clientY ?? 0,
+      time: Date.now(),
+      activeWindow: contents?.window,
+      boundary: container ? getScrollBoundary(container) : undefined,
     }
+  })
+
+  useRenditionEvent(rendition, 'touchend', (e) => {
+    const start = touchStartRef.current
+    touchStartRef.current = undefined
+    if (!start) return
+
+    const selection = start.activeWindow?.getSelection()
+    if (hasSelection(selection)) return
+
+    const x1 = e.changedTouches[0]?.clientX ?? 0
+    const y1 = e.changedTouches[0]?.clientY ?? 0
+    const deltaX = x1 - start.x
+    const deltaY = y1 - start.y
+    const deltaT = Date.now() - start.time
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+
+    if (isScrolled) {
+      if (!start.boundary) return
+      const turn = chapterTurnFromBoundarySwipe({
+        deltaX,
+        deltaY,
+        boundary: start.boundary,
+      })
+      if (turn) turnChapter(turn)
+      return
+    }
+
+    if (absX < 10) return
+
+    if (absY / absX > 2 && (deltaT > 100 || absX < 30)) {
+      return
+    }
+
+    if (deltaX > 0) tab.prev()
+    if (deltaX < 0) tab.next()
+  })
+
+  useRenditionEvent(rendition, 'touchmove', (e) => {
+    if (e.touches.length > 1 && e.cancelable) e.preventDefault()
   })
 
   useDisablePinchZooming(iframe as unknown as Window | undefined)
@@ -568,7 +662,7 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
         maskOpacity={0.6}
         bannerVisible={false}
       />
-      <ReaderPaneHeader tab={tab} />
+      <ReaderPaneHeader tab={tab} deviceMeta={deviceMeta} />
       <div
         ref={viewportRef}
         className={clsx(
@@ -608,13 +702,19 @@ function BookPane({ tab, onMouseDown }: BookPaneProps) {
           </div>
         </div>
       </div>
-      <ReaderPaneFooter tab={tab} />
+      <ReaderPaneFooter tab={tab} deviceMeta={deviceMeta} />
     </div>
   )
 }
 
 interface ReaderPaneHeaderProps {
   tab: BookTab
+  deviceMeta: ReaderDeviceMeta
+}
+
+interface ReaderDeviceMeta {
+  time: string
+  battery?: string
 }
 
 interface ReaderMetaContext {
@@ -622,7 +722,9 @@ interface ReaderMetaContext {
   navPath: { label: string }[]
   location?: {
     start?: {
+      index?: number
       href?: string
+      location?: number
       displayed?: {
         page?: number
         total?: number
@@ -630,9 +732,14 @@ interface ReaderMetaContext {
     }
   }
   percentage?: number
+  globalLocationTotal?: number
 }
 
-function getReaderMetaText(slot: ReaderMetaSlot, context: ReaderMetaContext) {
+function getReaderMetaText(
+  slot: ReaderMetaSlot,
+  context: ReaderMetaContext,
+  deviceMeta: ReaderDeviceMeta,
+) {
   switch (slot) {
     case 'none':
       return
@@ -649,24 +756,39 @@ function getReaderMetaText(slot: ReaderMetaSlot, context: ReaderMetaContext) {
       const page = displayed?.page
       const total = displayed?.total
       if (page === undefined || total === undefined) return
-      return `${page} / ${total}`
+      const chapter = context.navPath.at(-1)?.label?.trim()
+      return chapter ? `${page} / ${total} · ${chapter}` : `${page} / ${total}`
+    }
+    case 'globalPage': {
+      const page = context.location?.start?.location
+      const total = context.globalLocationTotal
+      if (page === undefined || page < 0 || !total) return '…'
+      return `${page + 1} / ${total + 1}`
     }
     case 'href':
       return context.location?.start?.href
     case 'progress':
       return `${((context.percentage ?? 0) * 100).toFixed()}%`
+    case 'time':
+      return deviceMeta.time
+    case 'battery':
+      return deviceMeta.battery
   }
 }
 
-const ReaderPaneHeader: React.FC<ReaderPaneHeaderProps> = ({ tab }) => {
+const ReaderPaneHeader: React.FC<ReaderPaneHeaderProps> = ({
+  tab,
+  deviceMeta,
+}) => {
   const [settings] = useSettings()
-  const { location, book } = useSnapshot(tab)
+  const { location, book, globalLocationTotal } = useSnapshot(tab)
   const navPath = tab.getNavPath()
   const context: ReaderMetaContext = {
     tab,
     navPath,
     location,
     percentage: book.percentage,
+    globalLocationTotal,
   }
   const leftSlot =
     settings.readerHeaderLeft ?? defaultReaderMetaSettings.readerHeaderLeft
@@ -674,34 +796,55 @@ const ReaderPaneHeader: React.FC<ReaderPaneHeaderProps> = ({ tab }) => {
     settings.readerHeaderRight ?? defaultReaderMetaSettings.readerHeaderRight
 
   useEffect(() => {
+    if (leftSlot === 'globalPage' || rightSlot === 'globalPage') {
+      void tab.ensureGlobalLocations()
+    }
+  }, [leftSlot, rightSlot, tab])
+
+  useEffect(() => {
     navPath.forEach((i) => (i.expanded = true))
   }, [navPath])
 
   return (
     <Bar>
-      <BarSlot align="left" value={getReaderMetaText(leftSlot, context)} />
-      <BarSlot align="right" value={getReaderMetaText(rightSlot, context)} />
+      <BarSlot
+        align="left"
+        value={getReaderMetaText(leftSlot, context, deviceMeta)}
+      />
+      <BarSlot
+        align="right"
+        value={getReaderMetaText(rightSlot, context, deviceMeta)}
+      />
     </Bar>
   )
 }
 
 interface FooterProps {
   tab: BookTab
+  deviceMeta: ReaderDeviceMeta
 }
-const ReaderPaneFooter: React.FC<FooterProps> = ({ tab }) => {
+const ReaderPaneFooter: React.FC<FooterProps> = ({ tab, deviceMeta }) => {
   const [settings] = useSettings()
-  const { locationToReturn, location, book } = useSnapshot(tab)
+  const { locationToReturn, location, book, globalLocationTotal } =
+    useSnapshot(tab)
   const navPath = tab.getNavPath()
   const context: ReaderMetaContext = {
     tab,
     navPath,
     location,
     percentage: book.percentage,
+    globalLocationTotal,
   }
   const leftSlot =
     settings.readerFooterLeft ?? defaultReaderMetaSettings.readerFooterLeft
   const rightSlot =
     settings.readerFooterRight ?? defaultReaderMetaSettings.readerFooterRight
+
+  useEffect(() => {
+    if (leftSlot === 'globalPage' || rightSlot === 'globalPage') {
+      void tab.ensureGlobalLocations()
+    }
+  }, [leftSlot, rightSlot, tab])
 
   return (
     <Bar>
@@ -726,10 +869,13 @@ const ReaderPaneFooter: React.FC<FooterProps> = ({ tab }) => {
         </>
       ) : (
         <>
-          <BarSlot align="left" value={getReaderMetaText(leftSlot, context)} />
+          <BarSlot
+            align="left"
+            value={getReaderMetaText(leftSlot, context, deviceMeta)}
+          />
           <BarSlot
             align="right"
-            value={getReaderMetaText(rightSlot, context)}
+            value={getReaderMetaText(rightSlot, context, deviceMeta)}
           />
         </>
       )}
@@ -766,4 +912,75 @@ const BarSlot: React.FC<BarSlotProps> = ({ align, value }) => {
       {value && <div className="truncate">{value}</div>}
     </div>
   )
+}
+
+interface BatteryManager extends EventTarget {
+  charging: boolean
+  level: number
+}
+
+type NavigatorWithBattery = Navigator & {
+  getBattery?: () => Promise<BatteryManager>
+}
+
+function useReaderDeviceMeta(): ReaderDeviceMeta {
+  const [now, setNow] = useState(() => new Date())
+  const [battery, setBattery] = useState<{
+    charging: boolean
+    level?: number
+  }>({ charging: false })
+  const timeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }),
+    [],
+  )
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 15_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const getBattery = (navigator as NavigatorWithBattery).getBattery
+    if (!getBattery) return
+
+    let manager: BatteryManager | undefined
+    let cancelled = false
+    const update = () => {
+      if (!manager || cancelled) return
+      setBattery({ charging: manager.charging, level: manager.level })
+    }
+
+    void getBattery
+      .call(navigator)
+      .then((value) => {
+        if (cancelled) return
+        manager = value
+        update()
+        manager.addEventListener('chargingchange', update)
+        manager.addEventListener('levelchange', update)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+      manager?.removeEventListener('chargingchange', update)
+      manager?.removeEventListener('levelchange', update)
+    }
+  }, [])
+
+  const percentage =
+    battery.level === undefined ? undefined : Math.round(battery.level * 100)
+
+  return {
+    time: timeFormatter.format(now),
+    battery:
+      percentage === undefined
+        ? undefined
+        : `${battery.charging ? '⚡ ' : ''}${percentage}%`,
+  }
 }

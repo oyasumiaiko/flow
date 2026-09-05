@@ -1,6 +1,6 @@
 import { Overlay } from '@literal-ui/core'
 import clsx from 'clsx'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import FocusLock from 'react-focus-lock'
 import {
   MdCopyAll,
@@ -21,6 +21,7 @@ import {
   useTypography,
 } from '../hooks'
 import { BookTab } from '../models'
+import { goBack, openTransientLayer } from '../navigation'
 import { isTouchScreen, scale } from '../platform'
 import { useSettings } from '../state'
 import { copy, keys, last } from '../utils'
@@ -130,6 +131,19 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
   const [height, setHeight] = useState(0)
   const mobile = useMobile()
   const t = useTranslation('menu')
+  const hideRef = useRef(hide)
+  hideRef.current = hide
+
+  useEffect(() => {
+    openTransientLayer(
+      () => undefined,
+      () => hideRef.current(),
+    )
+  }, [])
+
+  const dismiss = useCallback(() => {
+    goBack(() => hideRef.current())
+  }, [])
 
   const cfi = tab.rangeToCfi(range)
   const annotation = tab.book.annotations.find((a) => a.cfi === cfi)
@@ -154,7 +168,7 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
       <Overlay
         // cover `sash`
         className="!z-50 !bg-transparent"
-        onMouseDown={hide}
+        onMouseDown={dismiss}
       />
       <div
         ref={(el) => {
@@ -208,7 +222,7 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
               Icon={MdCopyAll}
               size={ICON_SIZE}
               onClick={() => {
-                hide()
+                dismiss()
                 copy(text)
               }}
             />
@@ -217,7 +231,7 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
               Icon={MdSearch}
               size={ICON_SIZE}
               onClick={() => {
-                hide()
+                dismiss()
                 setAction('search')
                 tab.setKeyword(text)
               }}
@@ -236,7 +250,7 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
                 Icon={MdOutlineIndeterminateCheckBox}
                 size={ICON_SIZE}
                 onClick={() => {
-                  hide()
+                  dismiss()
                   tab.undefine(text)
                 }}
               />
@@ -246,7 +260,7 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
                 Icon={MdOutlineAddBox}
                 size={ICON_SIZE}
                 onClick={() => {
-                  hide()
+                  dismiss()
                   tab.define([text])
                 }}
               />
@@ -277,7 +291,7 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
                       text,
                       ref.current?.value,
                     )
-                    hide()
+                    dismiss()
                   }}
                 >
                   A
@@ -294,7 +308,7 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
                 variant="secondary"
                 onClick={() => {
                   tab.removeAnnotation(cfi)
-                  hide()
+                  dismiss()
                 }}
               >
                 {t('delete')}
@@ -311,7 +325,7 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
                   text,
                   ref.current?.value,
                 )
-                hide()
+                dismiss()
               }}
             >
               {t(annotation ? 'update' : 'create')}

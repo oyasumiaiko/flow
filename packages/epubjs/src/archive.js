@@ -153,6 +153,17 @@ class Archive {
   }
 
   /**
+   * Return the uncompressed byte size recorded in the ZIP directory without
+   * inflating or parsing the entry. This is cheap enough to use for stable
+   * scroll-height estimates before a spine section is rendered.
+   */
+  getSize(url) {
+    var decodedUrl = window.decodeURIComponent(url.substr(1))
+    var entry = this.zip.file(decodedUrl)
+    return entry && entry._data && entry._data.uncompressedSize
+  }
+
+  /**
    * Get a base64 encoded result from Archive by Url
    * @param  {string} url
    * @param  {string} [mimeType]
